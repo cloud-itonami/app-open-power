@@ -1,0 +1,47 @@
+{
+  "viewId": "open-power.OV-6a",
+  "viewType": "OV-6a",
+  "title": "Operational Rules Model",
+  "did": "did:web:open-power.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "businessRules": [
+      {
+        "id": "rule.feederBelongsSubstation",
+        "statement": "Every feeder MUST originate at a substation node (nodeType='substation').",
+        "kind": "constraint",
+        "enforcedBy": "worker/src/app.ts:defineFeeder() validation"
+      },
+      {
+        "id": "rule.voltageMonotonicDownstream",
+        "statement": "Service-point voltageClass MUST be ≤ originating substation voltageClass (no step-up downstream).",
+        "kind": "constraint",
+        "enforcedBy": "worker/src/app.ts:defineFeeder() validation"
+      },
+      {
+        "id": "rule.readingMonotonic",
+        "statement": "Per service point, kwhImport / kwhExport readings MUST be non-decreasing in time. Negative deltas indicate meter rollover or fault.",
+        "kind": "invariant",
+        "enforcedBy": "worker/src/app.ts:recordReading() validation"
+      },
+      {
+        "id": "rule.outageClass",
+        "statement": "outage.class derived from customersAffected + durationMin: ≥50k → systemic; ≥5k OR ≥240min → regional; ≥100 → local; else isolated. class∈{systemic,regional} → regulator audit.",
+        "kind": "decisionTable",
+        "dmnDecisionKey": "openPower.outageClass",
+        "source": "dmn/outage-class.dmn"
+      },
+      {
+        "id": "rule.appendOnlyOutage",
+        "statement": "Outage records are append-only. Restoration is recorded by setting restored_at via reportOutage with prior outageDid as supersedes.",
+        "kind": "invariant",
+        "enforcedBy": "no UPDATE on outages.cause/start"
+      }
+    ]
+  },
+  "refs": {
+    "dmnDecisionKeys": ["openPower.outageClass"],
+    "viewIds": ["open-power.OV-5b"]
+  },
+  "version": 1
+}

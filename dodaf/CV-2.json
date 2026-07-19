@@ -1,0 +1,40 @@
+{
+  "viewId": "open-power.CV-2",
+  "viewType": "CV-2",
+  "title": "Capability Taxonomy",
+  "did": "did:web:open-power.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "capabilities": [
+      {
+        "id": "cap.gridDesign",
+        "name": "Grid design",
+        "children": [
+          { "id": "cap.substationDefine", "name": "Define substation", "realisedBy": "com.etzhayyim.apps.openPower.defineSubstation" },
+          { "id": "cap.feederDefine",     "name": "Define feeder",     "realisedBy": "com.etzhayyim.apps.openPower.defineFeeder" },
+          { "id": "cap.nodeQuery",        "name": "Query node",        "realisedBy": "com.etzhayyim.apps.openPower.getNode" },
+          { "id": "cap.feederList",       "name": "List feeders",      "realisedBy": "com.etzhayyim.apps.openPower.listFeeders" }
+        ]
+      },
+      {
+        "id": "cap.metering",
+        "name": "Metering",
+        "children": [
+          { "id": "cap.readingIngest", "name": "Ingest reading", "realisedBy": "com.etzhayyim.apps.openPower.recordReading" },
+          { "id": "cap.loadProfile",   "name": "Load profile",   "realisedBy": "com.etzhayyim.apps.openPower.getLoadProfile" }
+        ]
+      },
+      {
+        "id": "cap.reliability",
+        "name": "Reliability / outages",
+        "children": [
+          { "id": "cap.outageReport", "name": "Report outage", "realisedBy": "com.etzhayyim.apps.openPower.reportOutage" },
+          { "id": "cap.outageClass",  "name": "Class decisioning", "realisedBy": "openPower.outageClass (DMN)" },
+          { "id": "cap.outageList",   "name": "List outages",  "realisedBy": "com.etzhayyim.apps.openPower.listOutages" }
+        ]
+      }
+    ]
+  },
+  "refs": { "viewIds": ["open-power.OV-5b", "open-power.SV-1"] },
+  "version": 1
+}

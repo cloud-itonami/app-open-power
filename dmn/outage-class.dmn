@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20191111/DMNDI/"
+             xmlns:camunda="http://camunda.org/schema/1.0/dmn"
+             id="open-power-outage-class"
+             name="Outage Class"
+             namespace="https://etzhayyim.com/dmn/open-power">
+  <decision id="openPower.outageClass" name="Outage Class">
+    <decisionTable id="dt_outageClass" hitPolicy="FIRST">
+      <input id="i_customers" label="customersAffected">
+        <inputExpression typeRef="number"><text>customersAffected</text></inputExpression>
+      </input>
+      <input id="i_duration" label="durationMin">
+        <inputExpression typeRef="number"><text>durationMin</text></inputExpression>
+      </input>
+
+      <output id="o_class" label="class" name="class" typeRef="string"/>
+      <output id="o_requireRegulatoryReport" label="requireRegulatoryReport" name="requireRegulatoryReport" typeRef="boolean"/>
+
+      <rule id="r1">
+        <inputEntry><text>&gt;= 50000</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"systemic"</text></outputEntry>
+        <outputEntry><text>true</text></outputEntry>
+      </rule>
+      <rule id="r2">
+        <inputEntry><text>&gt;= 5000</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"regional"</text></outputEntry>
+        <outputEntry><text>true</text></outputEntry>
+      </rule>
+      <rule id="r3">
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>&gt;= 240</text></inputEntry>
+        <outputEntry><text>"regional"</text></outputEntry>
+        <outputEntry><text>true</text></outputEntry>
+      </rule>
+      <rule id="r4">
+        <inputEntry><text>&gt;= 100</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"local"</text></outputEntry>
+        <outputEntry><text>false</text></outputEntry>
+      </rule>
+      <rule id="r5">
+        <inputEntry><text>-</text></inputEntry>
+        <inputEntry><text>-</text></inputEntry>
+        <outputEntry><text>"isolated"</text></outputEntry>
+        <outputEntry><text>false</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

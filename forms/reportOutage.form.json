@@ -1,0 +1,61 @@
+{
+  "$schema": "https://etzhayyim.com/schemas/camunda-form/v1",
+  "formKey": "openPower.reportOutage.v1",
+  "name": "Report Outage",
+  "version": 1,
+  "lexiconRef": "com.etzhayyim.apps.openPower.reportOutage",
+  "components": [
+    {
+      "key": "feederDid",
+      "label": "Feeder DID",
+      "type": "textfield",
+      "validate": { "required": true, "pattern": "^did:[a-z]+:.+" }
+    },
+    {
+      "key": "startedAt",
+      "label": "Outage start (ISO 8601)",
+      "type": "textfield",
+      "validate": { "required": true }
+    },
+    {
+      "key": "restoredAt",
+      "label": "Restored at (ISO 8601, optional)",
+      "type": "textfield"
+    },
+    {
+      "key": "customersAffected",
+      "label": "Customers affected",
+      "type": "number",
+      "validate": { "required": true, "min": 0 }
+    },
+    {
+      "key": "cause",
+      "label": "Cause",
+      "type": "select",
+      "validate": { "required": true },
+      "values": [
+        { "label": "Equipment failure",  "value": "equipment" },
+        { "label": "Weather",            "value": "weather" },
+        { "label": "Vegetation",         "value": "vegetation" },
+        { "label": "Animal contact",     "value": "animal" },
+        { "label": "Third-party damage", "value": "third-party" },
+        { "label": "Planned maintenance","value": "planned" },
+        { "label": "Other",              "value": "other" }
+      ]
+    },
+    {
+      "key": "description",
+      "label": "Description",
+      "type": "textarea",
+      "validate": { "maxLength": 2048 }
+    }
+  ],
+  "variableMappings": {
+    "feederDid": "feederDid",
+    "startedAt": "startedAt",
+    "restoredAt": "restoredAt",
+    "customersAffected": "customersAffected",
+    "cause": "cause",
+    "description": "description"
+  }
+}

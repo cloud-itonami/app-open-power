@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="open-power-define-feeder"
+                  targetNamespace="https://etzhayyim.com/bpmn/open-power">
+  <bpmn:process id="defineFeeder" name="Define Feeder" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Init" name="Network design request"/>
+    <bpmn:sequenceFlow id="f1" sourceRef="StartEvent_Init" targetRef="Task_CollectFeederForm"/>
+
+    <bpmn:userTask id="Task_CollectFeederForm" name="Collect feeder form"
+                   camunda:formKey="openPower.defineFeeder.v1"/>
+    <bpmn:sequenceFlow id="f2" sourceRef="Task_CollectFeederForm" targetRef="Task_DefineFeeder"/>
+
+    <bpmn:serviceTask id="Task_DefineFeeder" name="com.etzhayyim.apps.openPower.defineFeeder"
+                      camunda:topic="com.etzhayyim.apps.openPower.defineFeeder"/>
+    <bpmn:sequenceFlow id="f3" sourceRef="Task_DefineFeeder" targetRef="EndEvent_Defined"/>
+
+    <bpmn:endEvent id="EndEvent_Defined" name="Feeder defined"/>
+  </bpmn:process>
+</bpmn:definitions>

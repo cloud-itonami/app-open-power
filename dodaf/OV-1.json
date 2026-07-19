@@ -1,0 +1,27 @@
+{
+  "viewId": "open-power.OV-1",
+  "viewType": "OV-1",
+  "title": "High-Level Operational Concept Graphic",
+  "did": "did:web:open-power.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "operationalNodes": [
+      { "id": "client",     "label": "Client (planner / DSO console / agent)" },
+      { "id": "power",      "label": "open-power.etzhayyim.com (Worker)" },
+      { "id": "store",      "label": "D1 (nodes/feeders/readings/outages SSoT)" },
+      { "id": "pds",        "label": "atproto.etzhayyim.com (PDS, public audit)" },
+      { "id": "regulator",  "label": "Energy Regulator (DID)" },
+      { "id": "meter",      "label": "Service-point Meter (DID)" }
+    ],
+    "operationalFlows": [
+      { "from": "client",    "to": "power",     "label": "XRPC (defineSubstation / defineFeeder / reportOutage)" },
+      { "from": "meter",     "to": "power",     "label": "XRPC (recordReading)" },
+      { "from": "power",     "to": "store",     "label": "INSERT nodes / feeders / readings / outages" },
+      { "from": "power",     "to": "pds",       "label": "app.bsky.feed.post (class ≥ regional)" },
+      { "from": "pds",       "to": "regulator", "label": "follow firehose" }
+    ],
+    "narrative": "A planner declares substations and feeders (network design). Service-point meters submit periodic readings. Field crews report outages; the outageClass DMN labels each event and gates a public audit post for regulator-visible classes."
+  },
+  "refs": { "viewIds": ["open-power.SV-1", "open-power.OV-5b"] },
+  "version": 1
+}

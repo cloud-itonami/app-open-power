@@ -1,0 +1,32 @@
+{
+  "viewId": "open-power.AV-1",
+  "viewType": "AV-1",
+  "title": "Overview and Summary Information",
+  "did": "did:web:open-power.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "purpose": "Provide a DID-addressed electric distribution operations service (substation/feeder design + meter readings + outage reporting) as an auditable, open-source reference implementation.",
+    "scope": {
+      "in": ["substation + feeder topology", "meter reading ingest", "outage reporting", "outage class decisioning (DMN)"],
+      "out": ["realtime SCADA/PMU", "demand response / VPP", "tariff & settlement", "OPF / contingency analysis"]
+    },
+    "architectureDescriptionContext": {
+      "mission": "Provide tamper-evident, DID-native distribution-grid primitives open to any AT Protocol client.",
+      "stakeholders": ["DSO operators", "service-point owners (DIDs)", "regulators", "field crews"],
+      "environment": "Cloudflare Workers + D1 (edge globally distributed)",
+      "standards": ["AT Protocol XRPC", "DoDAF v2.02", "BPMN 2.0", "DMN 1.3", "Camunda Forms", "IEC 61968 (CIM-aligned naming)"]
+    },
+    "toolsAndMethods": [
+      "XRPC Lexicons for external contracts (com.etzhayyim.apps.openPower.*)",
+      "BPMN 2.0 for process definition (defineFeeder, reportOutage)",
+      "DMN 1.3 for decision rules (outageClass)",
+      "Camunda Forms for human-task UI"
+    ],
+    "findings": "Topology = directed substation → service-point edges sufficient for radial distribution. Outage classifier auto-routes regulatory notifications.",
+    "recommendations": "Add SCADA ingest (kinesis/MQTT), introduce CIM-conformant equipment hierarchy, add ENS / ASIDI / SAIDI metric derivations."
+  },
+  "refs": {
+    "viewIds": ["open-power.OV-1", "open-power.OV-5b", "open-power.OV-6a", "open-power.CV-2", "open-power.SV-1"]
+  },
+  "version": 1
+}

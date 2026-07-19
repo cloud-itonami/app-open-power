@@ -1,0 +1,44 @@
+{
+  "viewId": "open-power.SV-1",
+  "viewType": "SV-1",
+  "title": "Systems Interface Description",
+  "did": "did:web:open-power.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "systems": [
+      {
+        "id": "sys.worker",
+        "name": "open-power Worker",
+        "platform": "Cloudflare Workers",
+        "entrypoint": "worker/src/app.ts",
+        "interfaces": [
+          { "id": "if.xrpc.defineSubstation", "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openPower.defineSubstation" },
+          { "id": "if.xrpc.defineFeeder",     "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openPower.defineFeeder" },
+          { "id": "if.xrpc.getNode",          "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openPower.getNode" },
+          { "id": "if.xrpc.listFeeders",      "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openPower.listFeeders" },
+          { "id": "if.xrpc.recordReading",    "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openPower.recordReading" },
+          { "id": "if.xrpc.reportOutage",     "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openPower.reportOutage" },
+          { "id": "if.xrpc.listOutages",      "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openPower.listOutages" },
+          { "id": "if.xrpc.getLoadProfile",   "kind": "XRPC", "method": "GET",  "nsid": "com.etzhayyim.apps.openPower.getLoadProfile" }
+        ]
+      },
+      {
+        "id": "sys.d1",
+        "name": "Cloudflare D1 (SQLite)",
+        "platform": "D1",
+        "tables": ["nodes", "feeders", "meter_readings", "outages"]
+      },
+      { "id": "sys.pds",  "name": "atproto.etzhayyim.com PDS", "platform": "Service binding",
+        "interfaces": [{ "id": "if.pds.post", "kind": "wRPC", "method": "app.bsky.feed.post" }] },
+      { "id": "sys.auth", "name": "auth.etzhayyim.com", "platform": "Service binding",
+        "interfaces": [{ "id": "if.auth.resolveCaller", "kind": "wRPC", "method": "resolveCallerDid" }] }
+    ],
+    "connections": [
+      { "from": "sys.worker", "to": "sys.d1",   "protocol": "D1 binding" },
+      { "from": "sys.worker", "to": "sys.pds",  "protocol": "Service binding (wRPC)" },
+      { "from": "sys.worker", "to": "sys.auth", "protocol": "Service binding (wRPC)" }
+    ]
+  },
+  "refs": { "viewIds": ["open-power.OV-1", "open-power.CV-2"] },
+  "version": 1
+}

@@ -1,0 +1,64 @@
+{
+  "viewId": "open-power.OV-5b",
+  "viewType": "OV-5b",
+  "title": "Operational Activity Model",
+  "did": "did:web:open-power.etzhayyim.com",
+  "format": "json",
+  "content": {
+    "activities": [
+      {
+        "id": "act.defineSubstation",
+        "name": "Define Substation",
+        "type": "xrpc",
+        "realisedBy": [{ "xrpc": "com.etzhayyim.apps.openPower.defineSubstation" }]
+      },
+      {
+        "id": "act.defineFeeder",
+        "name": "Define Feeder",
+        "type": "bpmn",
+        "bpmnProcessKey": "defineFeeder",
+        "source": "bpmn/define-feeder.bpmn",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openPower.defineFeeder" },
+          { "form": "openPower.defineFeeder.v1" }
+        ]
+      },
+      {
+        "id": "act.recordReading",
+        "name": "Record Meter Reading",
+        "type": "xrpc",
+        "realisedBy": [{ "xrpc": "com.etzhayyim.apps.openPower.recordReading" }]
+      },
+      {
+        "id": "act.reportOutage",
+        "name": "Report Outage",
+        "type": "bpmn",
+        "bpmnProcessKey": "reportOutage",
+        "source": "bpmn/report-outage.bpmn",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openPower.reportOutage" },
+          { "form": "openPower.reportOutage.v1" },
+          { "dmn":  "openPower.outageClass" }
+        ]
+      },
+      {
+        "id": "act.queryGrid",
+        "name": "Query Nodes / Feeders / Outages / Load",
+        "type": "xrpc",
+        "realisedBy": [
+          { "xrpc": "com.etzhayyim.apps.openPower.getNode" },
+          { "xrpc": "com.etzhayyim.apps.openPower.listFeeders" },
+          { "xrpc": "com.etzhayyim.apps.openPower.listOutages" },
+          { "xrpc": "com.etzhayyim.apps.openPower.getLoadProfile" }
+        ]
+      }
+    ]
+  },
+  "refs": {
+    "bpmnProcessKeys": ["defineFeeder", "reportOutage"],
+    "dmnDecisionKeys": ["openPower.outageClass"],
+    "formKeys": ["openPower.defineFeeder.v1", "openPower.reportOutage.v1"],
+    "viewIds": ["open-power.OV-6a", "open-power.SV-1"]
+  },
+  "version": 1
+}

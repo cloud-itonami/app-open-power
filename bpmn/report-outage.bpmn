@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="open-power-report-outage"
+                  targetNamespace="https://etzhayyim.com/bpmn/open-power">
+  <bpmn:process id="reportOutage" name="Report Outage" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_Init" name="Outage detected"/>
+    <bpmn:sequenceFlow id="f1" sourceRef="StartEvent_Init" targetRef="Task_CollectOutageForm"/>
+
+    <bpmn:userTask id="Task_CollectOutageForm" name="Collect outage form"
+                   camunda:formKey="openPower.reportOutage.v1"/>
+    <bpmn:sequenceFlow id="f2" sourceRef="Task_CollectOutageForm" targetRef="Task_ClassifyOutage"/>
+
+    <bpmn:businessRuleTask id="Task_ClassifyOutage" name="Outage class (DMN)"
+                           camunda:decisionRef="openPower.outageClass"/>
+    <bpmn:sequenceFlow id="f3" sourceRef="Task_ClassifyOutage" targetRef="Task_PersistOutage"/>
+
+    <bpmn:serviceTask id="Task_PersistOutage" name="com.etzhayyim.apps.openPower.reportOutage"
+                      camunda:topic="com.etzhayyim.apps.openPower.reportOutage"/>
+    <bpmn:sequenceFlow id="f4" sourceRef="Task_PersistOutage" targetRef="Gateway_Reg"/>
+
+    <bpmn:exclusiveGateway id="Gateway_Reg" name="Regulatory report?" default="f5b"/>
+    <bpmn:sequenceFlow id="f5a" sourceRef="Gateway_Reg" targetRef="Task_AuditPost">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${requireRegulatoryReport == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="f5b" sourceRef="Gateway_Reg" targetRef="EndEvent_Logged"/>
+
+    <bpmn:serviceTask id="Task_AuditPost" name="Emit app.bsky.feed.post (regulator audit)"
+                      camunda:topic="app.bsky.feed.post"/>
+    <bpmn:sequenceFlow id="f6" sourceRef="Task_AuditPost" targetRef="EndEvent_Reported"/>
+
+    <bpmn:endEvent id="EndEvent_Logged" name="Outage logged"/>
+    <bpmn:endEvent id="EndEvent_Reported" name="Outage reported to regulator"/>
+  </bpmn:process>
+</bpmn:definitions>

@@ -1,0 +1,58 @@
+{
+  "@context": "https://etzhayyim.com/ns/kotodama/v1",
+  "@id": "did:web:open-power.etzhayyim.com",
+  "name": "open-power",
+  "handle": "open-power.etzhayyim.com",
+  "performerType": "service",
+  "runtimeType": "worker",
+  "project": "open-power",
+  "convoSystemPrompt": "You are the ETZHAYYIM Open Power agent. You manage electric distribution network design (substations, feeders, service points), meter reading ingest, and outage reporting for DID-identified DSOs and meters. Apply grid safety rules: voltage-monotonic downstream, monotonic meter readings, regulator audit on regional+ outages.",
+  "governance": {
+    "raci": "responsible",
+    "classification": "operations",
+    "complianceFrameworks": ["iec-61968-aligned", "etzhayyim-ops-policy"]
+  },
+  "profile": {
+    "displayName": "ETZHAYYIM Open Power",
+    "description": "Open-source electric distribution operations reference implementation — substation/feeder design + meter readings + outage reporting (DMN class).",
+    "avatar": "⚡",
+    "category": "energy",
+    "isBot": true,
+    "operator": "etzhayyim.com",
+    "agentType": "autonomous",
+    "capabilities": [
+      "substation-define",
+      "feeder-define",
+      "node-query",
+      "reading-ingest",
+      "outage-report",
+      "outage-class-decisioning",
+      "load-profile"
+    ]
+  },
+  "triggers": {
+    "subscribeRepos": {
+      "collections": [
+        "app.bsky.feed.post",
+        "com.etzhayyim.apps.openPower.node",
+        "com.etzhayyim.apps.openPower.feeder",
+        "com.etzhayyim.apps.openPower.meterReading",
+        "com.etzhayyim.apps.openPower.outage"
+      ]
+    }
+  },
+  "space": {
+    "name": "ETZHAYYIM Open Power",
+    "description": "Open-source electric distribution operations reference implementation",
+    "joinRule": "public",
+    "historyVisibility": "world-readable",
+    "convos": [
+      {
+        "name": "power-ops",
+        "kind": "public",
+        "description": "Public operational events (network changes, regional+ outages)",
+        "default": true
+      }
+    ]
+  }
+}
