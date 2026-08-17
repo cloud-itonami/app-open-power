@@ -1,0 +1,8 @@
+# この 6 つは docs/operator-quickstart.md の §1 / §2 / §3 を実行すると必ずできる。
+# それ以前この repo に .gitignore が無かったので、手順どおり動かした人の
+# `git status` に node_modules が 135 パッケージぶん出ていた。
+node_modules/
+package-lock.json
+.svelte-kit/
+.wrangler/
+.DS_Store
