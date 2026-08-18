@@ -1,189 +1,186 @@
-# operator quickstart — app-open-power
+# operator-quickstart — app-open-power
 
-**この文書に書いてある手順は、2026-08-18 に上から下まで実際に実行したものだけである。**
-実行できなかったものは §5 に「実行できない」として分けてある（手順として書かない）。
+**ここに書いてあるコマンドは、2026-08-19 に実際に走らせたものだけである。**
+出力は実際の出力を貼っている。走らせていないものは「走らせていない」と書く。
 
-前提の実測環境: macOS（Darwin 25.3.0） / node v26.3.0 / npm 11.16.0 /
-wrangler 4.69.0（Homebrew、repo の依存ではない）。
+前提: このリポジトリのルートで実行する。`npx` が nbb / shadow-cljs / wrangler を
+取ってくる（このワークスペースの script host は nbb。`bb` は使わない）。
 
----
+## 0. この端末固有の罠 —— `npm install` が `EALLOWSCRIPTS` で落ちる
 
-## 0. 先に読む —— このマシンでは `npm install` が落ちる（repo の欠陥ではない）
-
-```
-$ cd kotoba && npm install
-npm error git dep preparation failed
-npm error   code EALLOWSCRIPTS
-npm error   --allow-scripts is not allowed in project-scoped installs.
-```
-
-原因は `~/.npmrc` の
-
-```
-allow-scripts[]=@anthropic-ai/claude-code
-```
-
-で、これが git 依存（`@etzhayyim/sdk` は `git+https://…`）の準備 install に
-継承され、npm 11.16.0 がそれを拒否する。**`--ignore-scripts` を足しても直らない**
-（実測）。空の user config で隔離すると通る:
+`kotoba/` の依存を入れるときだけ関係する。`~/.npmrc` の `allow-scripts[]=` が
+git 依存の準備 install に漏れ、npm がそれを拒否する。**空の userconfig で隔離すると
+通る**ので、これは repo ではなくこの端末の設定である。**この理由で repo 側を
+「直さない」こと。**
 
 ```bash
-printf '' > /tmp/empty-npmrc
-export npm_config_userconfig=/tmp/empty-npmrc      # 以降の npm 全部に効かせる
+: > /tmp/empty-npmrc
+cd kotoba && npm_config_userconfig=/tmp/empty-npmrc npm install --no-audit --no-fund
+# → added 135 packages in 2m
 ```
 
-**この回避策は環境の問題への対処であって、repo を直す理由ではない。** 素の
-`~/.npmrc` を持つ CI / 別マシンでは 0 節ごと飛ばしてよい。
+⚠ **`npm_config_userconfig=/dev/null` にすると npm は exit 0 のまま何もしない**
+（`node_modules` が作られず、ログも空）。それに気づかず `tsc` を走らせると
+`Cannot find module '@etzhayyim/sdk'` から 7 件のエラーが出て、**依存が無いだけ
+なのにコードが壊れているように見える**。実測でこれを踏んだ。空の**ファイル**を使う。
 
-なお隔離した install は git 依存の `prepare: tsc` を実行しない旨を警告するが、
-**下の typecheck とテストはそれで通る**（実測）。
+⚠ **`npm run x | tail` の直後の `$?` は `tail` の終了コードである。** これも実測で
+踏んだ —— エラーが 7 行流れているのに `RC=0` と表示された。終了コードを見るときは
+パイプを挟まない（`> log 2>&1; echo $?`）。
 
----
-
-## 1. `kotoba/` を動かす（唯一テストが在る面）
+## 1. 依存を取る
 
 ```bash
-export npm_config_userconfig=/tmp/empty-npmrc      # §0。素の環境では不要
-cd kotoba
-npm install
-npm run typecheck
-npm test
+clojure -P -M:cljs
 ```
 
-実測した出力:
-
-| コマンド | exit | 出力 |
-|---|---|---|
-| `npm install` | 0 | `added 135 packages, and audited 136 packages in 2m` / `found 0 vulnerabilities`（+ allow-scripts の警告 8 件） |
-| `npm run typecheck` | **0** | `tsc --noEmit` がエラーなし |
-| `npm test` | **0** | `Test Files 1 passed (1)` / `Tests 5 passed (5)` / 約 300ms |
-
-### 1.1 テストが本当に何かを掴んでいることを自分で確かめる
-
-**緑を見るだけでは足りない。** 次のどれか 1 つを壊すと、対応する 1 ケースだけが
-落ちる（3 件とも実測済み。確認したら `git checkout -- <file>` で戻す）:
-
-| 壊す | 落ちるテスト | 出るメッセージ |
-|---|---|---|
-| `src/types.ts` の `OUTAGE_CAUSES` から `"vegetation",` の行を消す | `filters outages + coverage rolls up active` | `expected 1 to be 2` |
-| `src/registry.ts` の `defineFeeder` から `substationNotFound` を返す 3 行を消す | `defines against existing substation; rejects missing` | `expected 'defined' to be 'substationNotFound'` |
-| `src/registry.ts` の `listFeeders` から `if (input.status && …) return false;` を消す | `lists by substation + status` | `expected 2 to be 1` |
-
-いずれも `1 failed | 4 passed (5)`。**復元後に `git diff --exit-code` が exit 0 に
-なることまで確かめる**（戻し損ねた変更を「テストが緑だから無害」と読まないため）。
-
----
-
-## 2. デプロイされる Worker をビルドする
-
-**`worker/src/app.ts` はビルド対象ではない。** `wrangler.jsonc` の `main` は
-`svelte/.svelte-kit/cloudflare/_worker.js` を指しており、それを作るのは
-`worker/svelte/` の SvelteKit ビルドである。
+## 2. テスト（ビルド不要、ブラウザ不要）
 
 ```bash
-export npm_config_userconfig=/tmp/empty-npmrc      # §0。素の環境では不要
-cd worker/svelte
-npm install
-node <superproject>/scripts/resource-guard.mjs run build -- npm run build
-npm run check
+K=/Users/junkawasaki/github/com-junkawasaki/orgs/kotoba-lang
+CP="src:test:$K/jp-go-digital-design-system/src:$K/html/src:$K/css/src"
+cat > /tmp/run-tests.cljs <<'RUNNER'
+(require '[cljs.test :refer [run-tests]] 'openpower.route-test)
+(run-tests 'openpower.route-test)
+RUNNER
+npx --yes nbb --classpath "$CP" /tmp/run-tests.cljs
 ```
 
-3 行目の `resource-guard` は superproject の規約（高負荷ビルドは同時 1 本）。
-単体の repo として触るなら `npm run build` を直接でよい。
-
-実測した出力:
-
-| コマンド | exit | 出力 |
-|---|---|---|
-| `npm install` | 0 | `added 93 packages, and audited 94 packages in 8s`（+ esbuild / workerd の postinstall 警告 2 件） |
-| `npm run build` | **0** | `✓ built in 4.37s` → `Using @sveltejs/adapter-cloudflare ✔ done`（clean-room 再走時。初回は 3.07s） |
-| `npm run check` | **0** | `163 FILES 0 ERRORS 0 WARNINGS` |
-
-生成物（`wrangler.jsonc` が指す先）:
+実際の出力:
 
 ```
-worker/svelte/.svelte-kit/cloudflare/_worker.js      4,335 B
-worker/svelte/.svelte-kit/cloudflare/client/
+Testing openpower.route-test
+
+Ran 6 tests containing 29 assertions.
+0 failures, 0 errors.
 ```
 
----
-
-## 3. ローカルで起動して、実際に何が返るかを見る
+## 3. ページを描いて品質を測る
 
 ```bash
-cd worker
-wrangler dev --port 8799 --local
+K=/Users/junkawasaki/github/com-junkawasaki/orgs/kotoba-lang
+cd $K/design-quality && npx --yes nbb -m design-quality.cli score /tmp/page.html --min 95
 ```
 
-`[wrangler:info] Ready on http://localhost:8799` が出たら、別の端末から:
+実際の出力:
 
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8799/
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8799/health
-curl -s -X POST -H 'content-type: application/json' -d '{}' \
-  http://localhost:8799/xrpc/com.etzhayyim.apps.openPower.listFeeders
+```
+  100.00  /tmp/page.html
+
+aggregate: 100.00
+
+axes scored: 10 (viewport, safe-area, dynamic-viewport, tap-targets, focus-visible,
+                 reduced-motion, overflow-guard, color-scheme, responsive, semantics)
+NOT scored: input-zoom, contrast — pass --extra-axes to include the optional ones
+A pass says nothing about an axis that was not applied.
+gate: aggregate 100.00 >= min 95.00 -> PASS
 ```
 
-**実測した応答（これが期待値である —— 200 が返ると思ってはいけない）:**
+`--extra-axes` を付けて 12 軸すべてを適用しても **100.00 / PASS**。
 
-| リクエスト | 実測 | なぜ |
-|---|---|---|
-| `GET /` | **200** | 雛形ページ（`<title>worker</title>`） |
-| `GET /health` | **404** | `/health` は未デプロイの `src/app.ts` にしか無い（README §3-A） |
-| `POST /xrpc/…listFeeders` | **500** `{"message":"Internal Error"}` | 転送先 `mcp.etzhayyim.com` が解決しない。`fetch` が投げるので、意図された 502 の分岐に入らない（README §3-B） |
+**この 100.00 が保証する範囲は狭い。** CLI 自身が「適用しなかった軸について
+pass は何も言わない」と出力している。デザインシステムを 1 つも使わないページでも
+96.63 が出て `--min 95` を通ることが別途測られている。だから
+`scripts/smoke-worker.cljs` の側で「component を呼んだ」と「stylesheet が実際に
+bundle へ入った」を**別々に**検査している（§5）。
 
-起動時に `EMFILE: too many open files, watch` が大量に出ることがある。これは
-このマシンで並行セッションが多いときのファイル監視の枯渇で、**Worker 自体は
-起動する**（上の 3 応答はその状態で取った）。
+## 4. ビルド（必ず resource guard を通す）
 
-`--local` を付けずに `wrangler dev` を実行すると Cloudflare の認証を求められ、
-`wrangler.jsonc` の `account_id` / `routes`（`open-power.etzhayyim.com/*`）に
-触りにいく。**ローカルで挙動を見るだけなら `--local` を付ける。**
-
-終了は `Ctrl-C`（プロセスを残すと port 8799 を掴んだままになる）。
-
----
-
-## 4. 参照先が生きているかを測る
+ワークスペース全体で高負荷 build は同時 1 本に制限されている。**exit 2 は
+「順番待ち」であって失敗ではない**ので、リトライで回す。
 
 ```bash
-for h in open-power.etzhayyim.com mcp.etzhayyim.com etzhayyim.com; do
-  printf '%-28s dns=[%s]\n' "$h" "$(dig +short $h | tr '\n' ' ')"
+rm -rf .shadow-cljs dist   # :esm の出力が byte 再現するのは cold cache のときだけ
+for i in $(seq 1 60); do
+  node /Users/junkawasaki/github/com-junkawasaki/scripts/resource-guard.mjs \
+    run build -- npx --yes shadow-cljs release worker > /tmp/b.log 2>&1
+  rc=$?
+  [ $rc -eq 0 ] && { echo "BUILD OK"; tail -1 /tmp/b.log; break; }
+  [ $rc -ne 2 ] && { echo "BUILD FAILED rc=$rc"; tail -20 /tmp/b.log; break; }
+  sleep 45
 done
 ```
 
-実測（2026-08-18）:
+実際の出力:
 
-| ホスト | DNS | `GET /` |
-|---|---|---|
-| `open-power.etzhayyim.com` | **解決しない** | — |
-| `mcp.etzhayyim.com` | **解決しない** | — |
-| `etzhayyim.com`（対照） | `104.21.51.111` / `172.67.179.128` | **200** |
+```
+[:worker] Build completed. (55 files, 12 compiled, 0 warnings, 6.10s)
+```
 
-対照の apex が 200 を返すので、**これは測定側（DNS / ネットワーク）の問題ではない**。
+`dist/worker.js` は **246,118 B**、sha256
+`4458a5a7338f9b7d517ad5fef79c19a47c35534aaceeb0b64da05a8829ef58bf`
+（cold cache からのビルドで 3 回とも同一だった。**incremental だと同じソースでも
+違うバイト列が安定して出る**ので、ハッシュを比べるときは必ず `.shadow-cljs` を
+消してから）。
 
----
+**「ビルドが通った」は検査ではない。** shadow は未宣言 var を *warning* として扱い
+exit 0 のまま壊れた bundle を書き出す。`shadow-cljs.edn` の
+`:compiler-options {:warnings-as-errors true}` がそれを exit 1 に変える。
+⚠ この key を `:build-options` の下に置くと**黙って無視される** —— shadow が読むのは
+`[:compiler-options :warnings-as-errors]` だけである。`scripts/verify-docs-claims.cljs`
+は EDN として読んで場所を確かめる（grep では見ない。自分のコメントで緑になるため）。
 
-## 5. 実行できないもの（手順として書けないので、ここに分けてある）
+## 5. ビルド済み bundle を実際に叩く
 
-| やりたいこと | 現状 | 根拠 |
-|---|---|---|
-| `worker/src/app.ts` を型検査・ビルドする | **できない** | `worker/` に `package.json` も `tsconfig.json` も無い |
-| `app.ts` の 8 XRPC を叩く | **できない** | どこからもビルド・デプロイされない |
-| D1 を用意して `app.ts` を動かす | **できない** | `wrangler.jsonc` に `d1_databases` binding が無い（`POWER_DB` は 19 箇所で使われる） |
-| `CLAUDE.md` の `Local Dev / Deploy` | **できない** | パスが無い / `e7m` が PATH に無い（README §3-E） |
-| `defence-handlers.ts` を動かす | **できない** | どこからも import されず、依存 `@etzhayyim/kotodama-host-sdk` がどの `package.json` にも無い |
-| BPMN / DMN を実行する | **できない** | この repo に engine は無い。DMN の内容は `app.ts:118-122` に手で写されている（一致を確認済み、README §1） |
+```bash
+npx --yes nbb scripts/smoke-worker.cljs dist/worker.js
+```
 
----
+18 項目すべて PASS。exit は **0 成功 / 1 期待と違う / 2 判定できなかった**
+（bundle が無ければ 2 —— 「無かったので合格」にしない）。
 
-## 6. 本番へ deploy するとき
+## 6. README の数を tree から derive し直す
 
-**この repo だけでは deploy しない。** 少なくとも次の 2 つが未解決である:
+```bash
+npx --yes nbb scripts/verify-docs-claims.cljs .
+```
 
-1. `open-power.etzhayyim.com` の DNS レコード（`routes` が張れない）
-2. 転送先 `mcp.etzhayyim.com`（無ければ全 XRPC が 500）
+20 claim すべて PASS、exit 0。`<dir>` は**引数の先頭**に置く。
 
-superproject の規約として、deploy は `origin/main` を包含した checkout からのみ
-行う（`git fetch origin && git merge --ff-only origin/main` を先に通す。
-PreToolUse hook `wrangler-deploy-main-sync-guard` が強制する）。
+## 7. workerd で動かす（実際のランタイム）
+
+```bash
+cd worker && npx --yes wrangler@latest dev --local --port 8799 --ip 127.0.0.1
+```
+
+別シェルから実測した結果:
+
+```
+GET  /                    -> 200 text/html; charset=utf-8   82,119 B
+GET  /health              -> 200 {"ok":true,"app":"open-power","runtime":"cljs",
+                                  "routes":["/","/health","/xrpc/:nsid"]}
+POST /xrpc/               -> 400 {"error":"Missing XRPC method"}
+OPTIONS /xrpc/x           -> 204
+GET  /nope                -> 404
+POST /health              -> 405
+GET  /dodaf               -> 404
+POST /xrpc/com.etzhayyim.apps.openPower.listFeeders
+                          -> 502 {"error":"MCP router unreachable","url":"https://mcp.etzhayyim.com/…"}
+POST /xrpc/a/b            -> 502   （400 ではない）
+```
+
+ページ本文の実測: `class="dads-table"` 1 / `--color-primitive-blue` **45** /
+`/xrpc/:nsid` 1。
+
+これは **`compatibility_flags` を空にした設定**で走らせた結果である。
+`nodejs_compat` は SvelteKit の adapter-cloudflare が要求していたもので、
+cljs の `:esm` bundle には要らない —— 憶測で消さず、これを見てから撤去した。
+
+## 8. deploy —— していない
+
+`wrangler deploy` は**実行していない**。`open-power.etzhayyim.com` も
+`mcp.etzhayyim.com` も `dig +short` が空を返すので、deploy しても route は
+張れないし中継先も無い。deploy するか retire するかは別の決定である。
+
+移行前の `CLAUDE.md` に書かれていた 3 行は、いま 1 行も実行できない:
+`cd 60-apps/etzhayyim-project-open-power/worker`（そのパスは無い。この repo 自身が
+その directory）/ `wrangler d1 create etzhayyim-open-power`（作れても binding が
+無い）/ `e7m actor deploy .`（`e7m` は PATH に無い）。実行できる手順に置き換えた。
+
+## 9. `kotoba/` を検査する（appview ではない。移行の対象外）
+
+```bash
+cd kotoba
+npm_config_userconfig=/tmp/empty-npmrc npm run typecheck   # → exit 0、エラー 0 件
+npm_config_userconfig=/tmp/empty-npmrc npm test            # → Tests 5 passed (5)、exit 0
+```

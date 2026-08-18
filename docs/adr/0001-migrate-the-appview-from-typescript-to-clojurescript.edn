@@ -1,0 +1,225 @@
+[{:db/id -1
+  :adr/id "app-open-power-0001"
+  :adr/title "appview を TypeScript/Svelte から ClojureScript へ移す"
+  :adr/status "accepted"
+  :adr/date "2026-08-19"
+  :adr/doc_type "adr"
+  :adr/source-format "edn"
+  :adr/body "
+# ADR-0001: appview を TypeScript/Svelte から ClojureScript へ移す
+
+**Status**: accepted / **Date**: 2026-08-19 / **Deciders**: Jun Kawasaki
+
+## Context
+
+この repo には同じ主題の実装が 3 つ在り、**deploy されるもの・テストが在るもの・
+機能が書いてあるものが全部別のファイル**だった（2026-08-18 の README が測って
+記録した現状）。
+
+| サブツリー | 何か | deploy されるか |
+|---|---|---|
+| `worker/svelte/` | SvelteKit + adapter-cloudflare。route は 2 本（`/` と `POST /xrpc/[...path]`） | **される** |
+| `worker/src/app.ts` | 8 XRPC + `/health` + DMN 停電分類（22,332 B / 431 行） | されない |
+| `kotoba/` | AT PDS 上のレジストリ 9 関数（TypeScript） | されない（HTTP 入口が無い） |
+
+測って確かめた欠陥:
+
+1. **deploy される handler と、読み手が開くファイルが別。** `worker/wrangler.jsonc` の
+   `main` は `svelte/.svelte-kit/cloudflare/_worker.js` で、そのパスは tree にも
+   disk にも存在しない（ビルド出力）。一方 `worker/src/app.ts` はどの
+   `package.json` からも宣言されず、型検査もビルドもされていなかった。
+2. **公開ページが隣の設定と矛盾していた。** `+page.svelte` は
+   `routeCount: 0` / `routes: []` / `vars: []` を literal で持ち、
+   `relativePath` は切り出し前の `60-apps/…` を指し、`<title>` は `worker` だった。
+3. **`app.ts` は D1 の binding を持たない。** `POWER_DB` を 19 箇所で使うが
+   `wrangler.jsonc` に `d1_databases` の項目は無い。
+
+## Decision
+
+**appview を ClojureScript に移し、appview の TypeScript と Svelte を撤去する。**
+
+    src/openpower/route.cljc    判断（どの handler が答えるか）
+    src/openpower/view.cljc     ページ（jp-go-dds の hiccup）
+    src/openpower/worker.cljs   Request/Response に触る唯一の層
+            ↓ shadow-cljs :target :esm
+    dist/worker.js              worker/wrangler.jsonc の main が指すもの
+
+superproject CLAUDE.md の runtime 順序は kotoba wasm > clojurewasm >
+ClojureScript > nbb で、TypeScript はそこに無い。入口を `.kotoba` ではなく cljs に
+置くのは ADR-2606290000 の判断で、kotoba の ingress capability が `:native-aot` /
+`:wasm-aot` とも pending だからである。判断を `.cljc` に切り出してあるのは、
+ブラウザもビルドも無しにテストするためであり、ingress が qualify した時に最初に
+`.kotoba` へ移る部分だからでもある。
+
+先例は同じ org の cloud-itonami/app-ongakuka と
+cloud-itonami-marketplace-listing。
+
+### これで消えた欠陥
+
+- (1) は構造的に消えた。`main` が指す bundle は `src/` からコンパイルされる。
+- (2) も構造的に消えた。ページは route 表（`openpower.route/routes`）を引数で
+  受け取って描く。表示と実際に答えるものが同じ 1 つの値から出るので、ずれる
+  余地が無い。
+- (3) は、**移植しないこと**で消えた（下記）。
+
+## 移行しなかったもの（黙って消していない）
+
+**`worker/src/app.ts`（8 XRPC + `/health` + `/_app/meta` + `/dodaf` + `/forms`）、
+`worker/src/dodaf-bootstrap.ts`、`worker/src/defence-handlers.ts` は移していない。**
+判定基準は『deploy されたことが無く、かつ binding が宣言されていない』ことで、
+3 本とも両方に当たる:
+
+- `app.ts` は `main` から指されておらず、`POWER_DB`（D1）の binding が
+  `wrangler.jsonc` に無い。
+- `dodaf-bootstrap.ts` は `app.ts` からのみ import されている。
+- `defence-handlers.ts` はどこからも import されておらず、依存の
+  `@etzhayyim/kotodama-host-sdk` はこの repo のどの `package.json` にも宣言が無い。
+
+動かない経路を移植して『移行済み』と言わないためである。必要になった時点で
+`route.cljc` に足し、テストと binding を伴って戻す。設計そのものは失われていない
+—— 8 XRPC の表は `CLAUDE.md` と `dodaf/SV-1.json` に、停電分類の決定表は
+`dmn/outage-class.dmn` に在る（`app.ts` の `classifyOutage()` が DMN の 5 ルールと
+1 つずつ一致することは 2026-08-18 に確認済みで、乖離は無かった）。
+
+## 移行の対象にしなかったもの — `kotoba/`
+
+**`kotoba/` の TypeScript 5 本は消していない。** これは appview ではない。
+
+- どの bundle にも入らない（`worker/` からも `svelte/` からも import されていない。
+  逆も無い）。
+- 独立した `package.json` を持ち、**依存が実際に解決する** —— 実測 2026-08-19、
+  135 packages が入り、`tsc --noEmit` が exit 0（エラー 0 件）、
+  `vitest run` が **5 passed** で exit 0。
+
+在る bundle に入らず、この移行が置き換えるものが 1 つも参照せず、依存が解決する
+ものは **dead ではない**。テンプレート的な『TypeScript を全部消す』指示に従って
+これを消すのは移行ではなく破壊である。README に測定つきで残し、検証器に
+**ファイル数（7）と .ts 数（5）を pin** して黙って育たないようにした。
+これを cljs へ移すかどうかは別の決定で、`@etzhayyim/sdk` の cljs face が要る。
+
+## 撤去した Svelte の残骸
+
+ファイルだけでなく設定も撤去した。
+
+- `wrangler.jsonc` の `assets` block は `./svelte/.svelte-kit/cloudflare/client` を
+  指していた（もう存在しないディレクトリ）。
+- `compatibility_flags` の `nodejs_compat` は adapter-cloudflare が要求していた
+  もので、cljs の `:esm` bundle には要らない。**憶測で消さず、workerd で実測して
+  から撤去した** —— `wrangler dev --local` を flag 無しの設定で起動し、全 route が
+  期待どおり答えることを確認している（下記『検証』）。
+- `APP_FRAMEWORK` は `sveltekit-edge-bff` から `clojurescript-shadow-esm` にした。
+- `CLAUDE.md` は Runtime を『Single CF Worker (`src/app.ts`)』と書いていた。移行で
+  偽になったので更新した。`Local Dev / Deploy` の 3 行は移行前から 1 行も実行できず
+  （パスが無い / binding が無い / `e7m` が PATH に無い）、実際に走る手順に置き換えた。
+
+## DoDAF の 2 つの view が、消したファイルを名指ししていた
+
+これは brief が予告していなかった、この repo 固有の発見である。
+`dodaf/SV-1.json` は `entrypoint` として、`dodaf/OV-6a.json` は 3 つの
+`enforcedBy` として `worker/src/app.ts` を**パスで**指していた（import ではなく
+散文としての参照なので、コードの参照検索には出てこない）。撤去すると宙に浮く。
+
+実測して書き直した —— **実装が無い規則は『無い』と書く**:
+
+| 規則 | 移行前の記述 | 実測して書いた記述 |
+|---|---|---|
+| `rule.feederBelongsSubstation` | `app.ts:defineFeeder()` | `kotoba/src/registry.ts:defineFeeder()`（`substationNotFound` を返す。test が実際に掴んでいる） |
+| `rule.voltageMonotonicDownstream` | `app.ts:defineFeeder()` | **`null` / not-implemented** —— `registry.ts` は voltageClass が語彙に在るかを見るだけで上流と下流を比較しない |
+| `rule.readingMonotonic` | `app.ts:recordReading()` | **`null` / not-implemented** —— `kotoba/` に `recordReading` は無く、`kwh` も `reading` も 1 語も現れない |
+
+`SV-1` の `entrypoint` は `src/openpower/worker.cljs` にしたうえで、
+**その entrypoint が 8 interface を実装していない**ことを
+`interfaceImplementationStatus: designed-not-implemented` として明示した。
+移行前は『実装がある』と読める書き方のまま、実際には 1 つも deploy されていな
+かった。
+
+## UI
+
+基盤は `jp-go-digital-design-system`（skill `kotoba-uiux` が定める新規 UI の base）。
+色・寸法は `--hig-*` トークン契約のみ、raw hex も px フォントサイズも無し。
+app 固有 CSS は 3 行。CSS は `shadow.resource/inline` で bundle に焼く
+（design system の外部リクエストゼロ方針）。決定論的 audit で 100.00 / 100
+（gate 95、10 軸）。`--extra-axes` で 12 軸すべてを適用しても 100.00。
+
+**ただしこの 100.00 が保証する範囲は狭い。** 実測: **デザインシステムの CSS を
+1 バイトも入れずに描画したページが 96.63 を出し、`--min 95` を通る。**
+CLI 自身も「適用しなかった軸について pass は何も言わない」と出力に書いている
+（10 軸適用、input-zoom と contrast は既定で不適用）。だから smoke の側で
+『component を呼んだ』と『stylesheet が実際に bundle へ入った』を **別々に**
+検査している —— この gate だけでは後者を一度も見ていないからである。
+
+## 検証（この ADR を書いた時点で実際に通したもの）
+
+- `openpower.route-test`: **6 tests / 29 assertions / 0 failures**（nbb、ビルド不要）
+- ページ描画 → design-quality **100.00**、gate PASS。`--extra-axes` でも 100.00
+- `shadow-cljs release worker`: **55 files / 12 compiled / 0 warnings / 6.10s**、
+  `dist/worker.js` **246,118 B**
+- `scripts/smoke-worker.cljs`: ビルド済み bundle を import して **18 項目 PASS**
+- `scripts/verify-docs-claims.cljs`: **20 claim すべて PASS**、exit 0
+- **workerd で実測**（`wrangler dev --local`、`nodejs_compat` 無しの設定）:
+  `GET /` 200 HTML 82,119 B / `GET /health` 200（自分の route を名乗る）/
+  `POST /xrpc/` 400 / `OPTIONS /xrpc/x` 204 / `GET /nope` 404 / `POST /health` 405 /
+  `GET /dodaf` 404（移植していない）/ `POST /xrpc/<nsid>` 502（URL 付き）/
+  `POST /xrpc/a/b` **502**（400 ではない）。
+  これは Node で bundle を import する smoke より強い証拠である。
+
+## 多段パスは移行前と同じく転送する
+
+移行前の SvelteKit route は rest parameter `[...path]` で受けており、空文字だけを
+400 にして `a/b` はそのまま tool 名として転送していた。cljs 版も同じにした。
+NSID に `/` は現れないので上流で失敗するだけだが、**絞るのは移行ではなく方針変更**
+であり、移行の commit に紛れ込ませるものではない。絞りたいなら別の決定として
+記録する。workerd で `POST /xrpc/a/b` が 502（400 ではない）ことを確認済み。
+
+## 中継の失敗が 500 から 502 になった（移行に伴う 1 件の挙動変更、意図的）
+
+移行前の `+server.ts` は upstream が非 2xx のとき 502 を返すよう書かれていたが、
+`fetch` に `catch` が無かった。`mcp.etzhayyim.com` は DNS を解決しないので
+`fetch` は**投げ**、その分岐に入る前に落ちて SvelteKit の汎用 **500** になっていた
+（2026-08-18 実測）。cljs 版は `catch` を持ち、意図どおり **502** を、試みた URL
+付きで返す。到達できなかったことを 200 で隠さない。
+
+## 検査が『落ちない』ことを確かめた（gate ごとに壊して見た）
+
+| 壊したもの | 赤くなったもの |
+|---|---|
+| bundle を消す | smoke が **exit 2**（0 とも 1 とも別）|
+| 呼ばれている var を改名 | build が **exit 1**、bundle を書き出さない（`:warnings-as-errors`）|
+| `(rc/inline …)` を `\"\"` に | 『stylesheet が入った』**だけ**が赤。『component を使った』は緑のまま |
+| env の値をページに出す | 『他の値を隠している』**だけ**が赤 |
+| 中継先を出すのをやめる | 『中継先を出している』**だけ**が赤 |
+| `/xrpc/a/b` を 400 に絞る | route test の当該 assertion **だけ**が赤 |
+| 撤去した `.ts` を戻す | 検証器の `removed-by-migration-absent` |
+| `:warnings-as-errors` を `:build-options` へ移す | 検証器の `warnings-as-errors-in-compiler-options` |
+| `kotoba/` にファイルを足す | 検証器の `kotoba-files` |
+| `wrangler.jsonc` の `main` を旧 SvelteKit 出力に戻す | 検証器の `wrangler-main` と `shadow-builds-that-main` |
+| ページから viewport meta を外す | design-quality が **88.76**、gate FAIL(exit 1) |
+
+**外した mutation を実演と数えない**という規律も 1 度効いた。env の値を漏らす
+最初の版は `(sort (concat (keys …) (vals …)))` と書いたので keyword と string を
+比べようとして描画ごと落ち、smoke は 1 ではなく **exit 2**（判定不能）を返した。
+これは『値の漏れを検査が捕まえた』ことの証明ではないので捨て、keys を sort して
+から values を文字列として足す形に**狙い直して**再実行した。
+
+`dads-table` を 1 本で見る検査は**落ちない**ことも実測した。この page で
+`dads-table` は CSS 込み **74** / CSS 無し **6**（0 にならない）、
+`--color-primitive-blue` は **45** / **0**。前者は view がライブラリを呼んだこと、
+後者は stylesheet が実際に bundle へ入ったことで、別の主張なので別の検査にした。
+
+## Consequences
+
+- appview の TypeScript は 0 本、正本言語が 4 本になった（移行前は appview TS 5 本 +
+  Svelte 1 本、正本 0 本）。
+- **`kotoba/` の TypeScript 5 本は残る。** production の TS を 0 と主張することは
+  できないし、するべきでもない。検証器は『kotoba/ の外に .ts が無い』ことと
+  『kotoba/ が 7 ファイル / .ts 5 本のままである』ことを別々の claim にした。
+  1 つ目だけだと kotoba/ の中に appview を書き戻せてしまい、2 つ目だけだと
+  appview の TypeScript の復活を見逃す。
+- 手を触れていない 12 ファイルは 1 バイトも変わっていない（sha256 を検証器に固定）。
+  `worker/wrangler.jsonc` / `CLAUDE.md` / `dodaf/SV-1.json` / `dodaf/OV-6a.json` は
+  **意図して**変えたので、その集合ではなく内容で検査する。
+- **ホストは相変わらず解決しない。** `open-power.etzhayyim.com` も
+  `mcp.etzhayyim.com` も `dig +short` が空を返す。移行はそれを直さない。
+  deploy するか retire するかは別の決定である。
+- **この移行では deploy していない。**
+"}]

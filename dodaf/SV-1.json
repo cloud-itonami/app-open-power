@@ -10,7 +10,9 @@
         "id": "sys.worker",
         "name": "open-power Worker",
         "platform": "Cloudflare Workers",
-        "entrypoint": "worker/src/app.ts",
+        "entrypoint": "src/openpower/worker.cljs",
+        "entrypointNote": "2026-08-19 の cljs 移行まで、ここは worker/src/app.ts を指していた。そのファイルは deploy されず（wrangler の main は SvelteKit のビルド出力を指していた）、使っていた D1 の binding も wrangler.jsonc に宣言されていなかったので、移行では持ち越さず撤去した。現在 deploy される entrypoint は src/openpower/worker.cljs だが、**下の 8 interface を実装していない** —— XRPC を MCP router へ中継するだけである。したがってこの SV-1 は設計であって、現在の実装状況ではない。",
+        "interfaceImplementationStatus": "designed-not-implemented",
         "interfaces": [
           { "id": "if.xrpc.defineSubstation", "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openPower.defineSubstation" },
           { "id": "if.xrpc.defineFeeder",     "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openPower.defineFeeder" },
@@ -26,7 +28,8 @@
         "id": "sys.d1",
         "name": "Cloudflare D1 (SQLite)",
         "platform": "D1",
-        "tables": ["nodes", "feeders", "meter_readings", "outages"]
+        "tables": ["nodes", "feeders", "meter_readings", "outages"],
+        "note": "設計上のストレージ。binding は wrangler.jsonc に宣言されたことが無い。"
       },
       { "id": "sys.pds",  "name": "atproto.etzhayyim.com PDS", "platform": "Service binding",
         "interfaces": [{ "id": "if.pds.post", "kind": "wRPC", "method": "app.bsky.feed.post" }] },
@@ -37,8 +40,9 @@
       { "from": "sys.worker", "to": "sys.d1",   "protocol": "D1 binding" },
       { "from": "sys.worker", "to": "sys.pds",  "protocol": "Service binding (wRPC)" },
       { "from": "sys.worker", "to": "sys.auth", "protocol": "Service binding (wRPC)" }
-    ]
+    ],
+    "connectionNote": "上の 3 本はいずれも設計であり、deploy される Worker はどれも張っていない。"
   },
   "refs": { "viewIds": ["open-power.OV-1", "open-power.CV-2"] },
-  "version": 1
+  "version": 2
 }

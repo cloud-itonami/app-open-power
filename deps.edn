@@ -1,0 +1,24 @@
+;; app-open-power — 配電網（変電所・フィーダ・停電）の appview。
+;;
+;; Worker は ClojureScript である。superproject CLAUDE.md の runtime 順序
+;; （kotoba wasm > clojurewasm > ClojureScript > nbb）に従う。入口を .kotoba に
+;; 置かないのは ADR-2606290000 の判断で、kotoba の ingress capability が
+;; :native-aot / :wasm-aot とも pending だからである。判断の部分は .cljc に
+;; 切り出してあるので、ブラウザもビルドも無しにテストでき、ingress が qualify
+;; した時に最初に .kotoba へ移る。
+;;
+;; ここに `kotoba/` の TypeScript は現れない。あれは AT PDS 上のレジストリを
+;; 実装した別の面で、この bundle には入らないし、この移行の対象でもない
+;; （docs/adr/0001 §「移行しなかったもの」）。
+{:paths ["src"]
+ :deps {io.github.kotoba-lang/jp-go-digital-design-system
+        {:git/url "https://github.com/kotoba-lang/jp-go-digital-design-system"
+         :git/sha "2e2d191e9e1731ce6865c79dab163a5d74249053"}}
+ :aliases
+ {:cljs {:extra-deps {org.clojure/clojurescript {:mvn/version "1.11.132"}
+                      thheller/shadow-cljs {:mvn/version "2.28.20"}}}
+  :test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner
+                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :main-opts ["-m" "cognitect.test-runner"]
+         :exec-fn cognitect.test-runner.api/test}}}

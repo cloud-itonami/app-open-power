@@ -1,193 +1,180 @@
 # app-open-power
 
-配電網（変電所・フィーダ）の設計と運用（停電・検針）を扱う repo。**ただし、この
-repo には同じ主題の実装が 3 つ入っていて、そのうち「デプロイされるもの」と
-「テストが在るもの」と「機能が書いてあるもの」が**全部別のファイルである**。
+配電網（変電所・フィーダ）の設計と運用（停電・検針）を扱う repo。
 
-| サブツリー | 何か | 動くか | デプロイされるか |
-|---|---|---|---|
-| **`kotoba/`** | TypeScript。`@etzhayyim/sdk` の AT PDS レコードの上の**レジストリ 9 関数**（substation / feeder / outage / coverage） | **動く**（typecheck exit 0、vitest **5 passed**） | **されない**（HTTP 入口が無いライブラリ） |
-| **`worker/svelte/`** | SvelteKit + `adapter-cloudflare`。**route は 2 本だけ** —— `/`（雛形ページ）と `POST /xrpc/[...path]`（`mcp.etzhayyim.com` への転送） | **ビルドは通る**（`vite build` exit 0、`svelte-check` 0 errors） | **これがデプロイされる**（`wrangler.jsonc` の `main`） |
-| **`worker/src/app.ts`** | D1 を張った本体。**8 つの XRPC + `/health` + DMN 停電分類 + BPMN/DoDAF/Form の配布** | **ビルドされない**（`package.json` も `tsconfig` も無い） | **されない** |
+**2026-08-19、appview を TypeScript/Svelte から ClojureScript へ移した**
+（[`docs/adr/0001`](docs/adr/0001-migrate-the-appview-from-typescript-to-clojurescript.edn)）。
+移行前この repo は「**deploy されるもの・テストが在るもの・機能が書いてあるものが
+全部別のファイル**」という状態で、`wrangler.jsonc` の `main` は tree にも disk にも
+無い SvelteKit のビルド出力を指し、読み手が application として開く
+`worker/src/app.ts`（431 行）は**どの bundle にも入っていなかった**。
 
-**つまり、この repo の機能は `worker/src/app.ts`（22,332 B、431 行）に書いてあるが、
-それは何からも読まれていない。** デプロイされるのは 2 route の薄い proxy で、
-その転送先 `mcp.etzhayyim.com` は**現在 DNS を解決しない**（§3-B）。
+いまはこうなっている:
 
-[`CLAUDE.md`](CLAUDE.md) は 8 つの XRPC を表で列挙していて、**設計文書としては
-正しい**（`app.ts` の実装と一致する）。**この repo の現状の説明として読むと必ず
-間違える** —— そこに書かれた `Local Dev / Deploy` の 3 行は、いま 1 行も実行できない
-（§3-E）。
+| サブツリー | 何か | deploy されるか |
+|---|---|---|
+| **`src/openpower/`** | ClojureScript。`route.cljc`(判断) / `view.cljc`(ページ) / `worker.cljs`(Request/Response) | **これが deploy される**（`worker/wrangler.jsonc` の `main` → `../dist/worker.js`）|
+| **`kotoba/`** | TypeScript。`@etzhayyim/sdk` の AT PDS レコードの上の**レジストリ 9 関数** | されない（HTTP 入口が無いライブラリ）。**移行の対象外** |
+| `bpmn/` `dmn/` `dodaf/` `forms/` | 宣言（BPMN 2 / DMN 1 / DoDAF 6 / Form 2） | データ。実行されない |
 
-この README が書くのは設計ではなく、**2026-08-18 に実際に測った現状**である。
-手順は [`docs/operator-quickstart.md`](docs/operator-quickstart.md)。
+この README が書くのは設計ではなく、**実際に測った現状**である。手順は
+[`docs/operator-quickstart.md`](docs/operator-quickstart.md)。
 
-## 1. この repo に在るもの（33 ファイル / 82,167 バイト）
+## 1. deploy される面が答えるもの
 
-`etzhayyim/root` の `60-apps/etzhayyim-project-open-power`（rev `7a08afb4`、
-31 ファイル / 81,702 バイト）から切り出した standalone artifact
-（[`migration.edn`](migration.edn)）。追加の 2 件が `README.edn` と `migration.edn`。
-**この `README.md` と `docs/operator-quickstart.md` はさらに後から足している** ——
-`migration.edn` の `:allowed-additions` はまだこの 2 件を列挙していないので、
-そこは切り出し契約の更新漏れである（fleet の他の repo と同じ扱い。実測: 同じ
-`:allowed-additions ["README.edn" "migration.edn"]` を持つ `app-legal-entity` /
-`app-itonami` も既に `README.md` + `docs/operator-quickstart.md` を持っている）。
+route 表は `src/openpower/route.cljc` の `routes` という 1 つの値で、
+**ランディングページはその値を描く**。だから「在る route」と「ページが宣伝する
+route」が食い違えない。
 
-### `kotoba/` — AT PDS 上のレジストリ（TypeScript、唯一テストが在る面）
+| METHOD | PATH | 何をするか |
+|---|---|---|
+| GET | `/` | この appview の説明ページ（jp-go-dds） |
+| GET | `/health` | 生存確認。自分の route を名乗る |
+| POST | `/xrpc/:nsid` | XRPC を MCP router へ中継する（この Worker は解釈しない）|
+
+`wrangler dev --local`（workerd）での実測:
+
+```
+GET  /                    -> 200 text/html   82,119 B
+GET  /health              -> 200 {"ok":true,"app":"open-power","runtime":"cljs",
+                                  "routes":["/","/health","/xrpc/:nsid"]}
+POST /xrpc/               -> 400 {"error":"Missing XRPC method"}
+OPTIONS /xrpc/x           -> 204
+GET  /nope                -> 404
+POST /health              -> 405
+GET  /dodaf               -> 404   （app.ts の route は移植していない）
+POST /xrpc/<nsid>         -> 502 {"error":"MCP router unreachable", "url":"https://mcp.etzhayyim.com/…"}
+POST /xrpc/a/b            -> 502   （400 ではない。移行前と同じく転送する）
+```
+
+**中継先は今日も解決しない。** `mcp.etzhayyim.com` も、route が張られる
+`open-power.etzhayyim.com` も `dig +short` が空を返す（対照: apex の
+`etzhayyim.com` は解決する）。移行はそれを直さない —— deploy するか retire するかは
+別の決定である。**この移行では deploy していない。**
+
+移行前この経路は **500** を返していた。`+server.ts` は upstream が非 2xx のとき
+502 を返すよう書かれていたが `fetch` に `catch` が無く、名前解決の失敗は
+`fetch` が投げるのでその分岐に入る前に落ちて SvelteKit の汎用 500 になっていた。
+cljs 版は `catch` を持ち、意図どおり 502 を試みた URL 付きで返す。
+
+## 2. 移行しなかったもの（黙って消していない）
+
+**`worker/src/app.ts`・`dodaf-bootstrap.ts`・`defence-handlers.ts` は移していない。**
+判定は「deploy されたことが無く、かつ binding が宣言されていない」ことで、3 本とも
+両方に当たる:
+
+- `app.ts` — `main` から指されておらず、`POWER_DB`(D1) を 19 箇所で使うのに
+  `wrangler.jsonc` に `d1_databases` が無い。`package.json` も `tsconfig.json` も
+  無いので型検査もビルドもされていなかった。
+- `dodaf-bootstrap.ts` — `app.ts` からのみ import されていた。
+- `defence-handlers.ts` — どこからも import されておらず、依存の
+  `@etzhayyim/kotodama-host-sdk` はこの repo のどの `package.json` にも宣言が無い。
+
+**設計は失われていない。** 8 XRPC の表は [`CLAUDE.md`](CLAUDE.md) と
+`dodaf/SV-1.json` に、停電分類の決定表は `dmn/outage-class.dmn` に在る（`app.ts` の
+`classifyOutage()` が DMN の 5 ルールと 1 つずつ一致することは確認済みで、乖離は
+無かった）。動かない経路を移植して「移行済み」と言わないためにこうしている。
+
+## 3. `kotoba/` は消していない —— appview ではないから
+
+**この repo の TypeScript は全部が appview だったわけではない。**
+`kotoba/` は AT PDS 上のレジストリで、
+
+- **どの bundle にも入らない**（`worker/` からも `svelte/` からも import されて
+  いなかったし、逆も無い。実測で双方向に確認）
+- **依存が実際に解決する** —— 実測 2026-08-19、135 packages が入り、
+  `tsc --noEmit` **exit 0（エラー 0 件）**、`vitest run` **5 passed / exit 0**
+
+bundle に入らず、移行が置き換えるものが 1 つも参照せず、依存が解決するものは
+**dead ではない**。「TypeScript を全部消す」式の指示でこれを消すのは移行ではなく
+破壊である。検証器は `kotoba/` の**ファイル数(7)と `.ts` 数(5)を pin** しており、
+黙って育てば落ちる。cljs へ移すかどうかは別の決定で、`@etzhayyim/sdk` の cljs face が要る。
 
 | ファイル | 中身 |
 |---|---|
-| `src/types.ts`（6,110 B） | レコード型 3 種、`VoltageClass` 4 値 / `FeederStatus` 4 値 / `OutageCause` 6 値 / `OutageStatus` 2 値、DID・rkey 生成 |
-| `src/registry.ts`（10,338 B） | 本体 9 関数。コレクションは `…openPower.substation` / `.feeder` / `.outage` の 3 本 |
-| `src/index.ts`（598 B） | barrel |
-| `test/open-power.test.ts`（3,254 B） | `MockEtzhayyim` に対する 5 ケース |
+| `src/types.ts` | レコード型 3 種、`VoltageClass` 4 値 / `FeederStatus` 4 値 / `OutageCause` 6 値、DID・rkey 生成 |
+| `src/registry.ts` | 本体 9 関数（substation / feeder / outage / coverage）|
+| `src/index.ts` | barrel |
+| `test/open-power.test.ts` | `MockEtzhayyim` に対する 5 ケース |
 
-外部キーは実際に検査される: `defineFeeder` は substation の存在を、`reportOutage` は
-feeder の存在を確認し、無ければ `substationNotFound` / `feederNotFound` を返す
-（**この 2 つを外すとテストが赤くなることを実測した** —— §4）。ID は
-`substationRkey` 等で小文字に正規化され、`listFeeders({substationId})` の照合も
-小文字化してから比較する。
+## 4. 表面が 3 つとも違っていた（移行後もそのまま）
 
-`coverage()` は 3 コレクションを最大 10,000 件まで走査して
-`{substationCount, feederCount, feedersByStatus, outageCount, activeOutages, truncated}`
-を返す。**打ち切りを黙って起こさない** —— `truncated` を必ず返す。
+| メソッド（`com.etzhayyim.apps.openPower.*`） | CLAUDE.md | 旧 `app.ts`（撤去） | `kotoba/` | **deploy される面** |
+|---|---|---|---|---|
+| `defineSubstation` | ✅ | ✅ | ✅ | 中継のみ |
+| `defineFeeder` | ✅ | ✅ | ✅ | 中継のみ |
+| `getNode` | ✅ | ✅ | — (`getSubstation`/`getFeeder` に分かれた) | 中継のみ |
+| `listFeeders` | ✅ | ✅ | ✅ | 中継のみ |
+| `recordReading` | ✅ | ✅ | **無い** | 中継のみ |
+| `reportOutage` | ✅ | ✅ | ✅ | 中継のみ |
+| `listOutages` | ✅ | ✅ | ✅ | 中継のみ |
+| `getLoadProfile` | ✅ | ✅ | **無い** | 中継のみ |
+| `listSubstations` / `coverage` | — | — | ✅ | 中継のみ |
 
-### `worker/` — デプロイされる面（2 route）と、されない面（8 XRPC）
+**deploy される面は nsid を検査しない** —— `POST /xrpc/<何でも>` をそのまま MCP
+router の `tools/call` に詰めて投げる（移行前の `[...path]` と同じ）。したがって
+「この Worker が何を受け付けるか」は、この repo の中には書かれていない。
 
-| ファイル | 中身 | 到達可能か |
+## 5. DoDAF の 2 view が、撤去したファイルを名指ししていた
+
+`dodaf/SV-1.json` は `entrypoint` として、`dodaf/OV-6a.json` は 3 つの `enforcedBy`
+として `worker/src/app.ts` を**パスで**指していた（import ではなく散文としての
+参照なので、コードの参照検索には出てこない）。実測して書き直した ——
+**実装が無い規則は「無い」と書く**:
+
+| 規則 | 移行前 | 実測して書いた記述 |
 |---|---|---|
-| `svelte/src/routes/+page.svelte`（3,081 B） | 生成された雛形ページ | **到達する**（`GET /` → 200） |
-| `svelte/src/routes/xrpc/[...path]/+server.ts`（2,803 B） | 任意の nsid を MCP router へ転送 | **到達する**（`POST /xrpc/…`） |
-| `src/app.ts`（22,332 B） | 8 XRPC + `/health` + `/_worker/health` + `/_app/meta` + `/dodaf` + `/forms` | **到達しない** |
-| `src/defence-handlers.ts`（3,423 B） | defence イベント 1 件を Hyperdrive へ書く handler | **到達しない**（§3-D） |
-| `src/dodaf-bootstrap.ts`（1,727 B） | DoDAF ビューの bootstrap | `app.ts` からのみ |
+| `rule.feederBelongsSubstation` | `app.ts:defineFeeder()` | `kotoba/src/registry.ts:defineFeeder()`（`substationNotFound` を返し、test が実際に掴んでいる）|
+| `rule.voltageMonotonicDownstream` | `app.ts:defineFeeder()` | **not-implemented** —— `registry.ts` は voltageClass が語彙に在るかを見るだけで、上流と下流を比較しない |
+| `rule.readingMonotonic` | `app.ts:recordReading()` | **not-implemented** —— `kotoba/` に `recordReading` は無く、`kwh` も `reading` も 1 語も現れない |
 
-`wrangler.jsonc` の `main` は `svelte/.svelte-kit/cloudflare/_worker.js` である。
-**`src/` を指してはいない。**
+`SV-1` の `entrypoint` は `src/openpower/worker.cljs` にしたうえで、その entrypoint が
+**8 interface を実装していない**ことを `designed-not-implemented` として明示した。
 
-### 宣言ファイル（BPMN / DMN / DoDAF / Form）
+## 6. この repo に在るもの（35 ファイル）
 
-`bpmn/`（2）・`dmn/`（1）・`dodaf/`（6）・`forms/`（2）。**DoDAF と Form は
-`app.ts` が `import` して配信する。BPMN と DMN は誰も parse しない** ——
-`app.ts:386` が名前を文字列として列挙するだけである。
+`etzhayyim/root` の `60-apps/etzhayyim-project-open-power`（rev `7a08afb4`、
+31 ファイル / 81,702 バイト）から切り出した standalone artifact
+（[`migration.edn`](migration.edn)）。`migration.edn` の `:allowed-additions` は
+`README.edn` と `migration.edn` の 2 件しか列挙していないが、実際には
+`README.md` / `docs/operator-quickstart.md` / 移行で足した cljs 一式が在る ——
+そこは切り出し契約の更新漏れである（fleet の他の repo と同じ扱い）。
 
-DMN の中身は 5 ルールの決定表（`customersAffected` と `durationMin` から
-`{class, requireRegulatoryReport}` を出す）で、**`app.ts:118-122` の
-`classifyOutage()` と 1 ルールずつ突き合わせて一致することを確認した**
-（`>=50000 systemic` / `>=5000 regional` / `durationMin>=240 regional` /
-`>=100 local` / それ以外 `isolated`、report フラグも一致）。乖離は無い。
+手を触れていない 12 ファイル（`README.edn` / `migration.edn` /
+`worker/kotodama.jsonld` / `bpmn/`×2 / `dmn/`×1 / `forms/`×2 / `dodaf/` のうち 4）は
+**1 バイトも変わっていない**。sha256 を `scripts/verify-docs-claims.cljs` に固定して
+ある。意図して変えた `worker/wrangler.jsonc` / `CLAUDE.md` / `dodaf/SV-1.json` /
+`dodaf/OV-6a.json` はその集合に入れず、内容で検査する ——
+意図した変更と勝手な変更を区別するためである。
 
-**ただしこの分類は、動く面のどこにも無い。** `kotoba/` には
-`classify` も `duration` も `kWh` も 1 語も無く、デプロイされる 2 route も
-分類しない。**この領域で唯一の「判断」が、実行される経路から届かない場所にある。**
+## 7. 検査
 
-## 2. 表面が 3 つとも違う
-
-| メソッド（`com.etzhayyim.apps.openPower.*`） | CLAUDE.md | `app.ts`（未デプロイ） | `kotoba/`（テスト有） |
-|---|---|---|---|
-| `defineSubstation` | ✅ | ✅ | ✅ |
-| `defineFeeder` | ✅ | ✅ | ✅ |
-| `getNode` | ✅ | ✅ | — （`getSubstation` / `getFeeder` に分かれた） |
-| `listFeeders` | ✅ | ✅ | ✅ |
-| `recordReading` | ✅ | ✅ | **無い** |
-| `reportOutage` | ✅ | ✅ | ✅ |
-| `listOutages` | ✅ | ✅ | ✅ |
-| `getLoadProfile` | ✅ | ✅ | **無い** |
-| `listSubstations` | — | — | ✅ |
-| `coverage` | — | — | ✅ |
-
-デプロイされる `+server.ts` は **nsid を検査しない** —— `POST /xrpc/<何でも>` を
-そのまま MCP router の `tools/call` に詰めて投げる。したがって「この Worker が
-何を受け付けるか」は、この repo の中には書かれていない。
-
-## 3. 測って見つけた欠陥（この周では 1 件も直していない）
-
-**A. `/health` が 404 になる。** `app.ts` は `/health` を持つが、デプロイされるのは
-SvelteKit 側で、そこに `/health` route は無い。`wrangler dev` を上げて実測:
-
-```
-GET /       -> 200   （雛形ページ）
-GET /health -> 404   （SvelteKit の 404 HTML）
+```bash
+nbb scripts/verify-docs-claims.cljs .            # この README の数を tree から derive し直す
+nbb scripts/smoke-worker.cljs dist/worker.js     # ビルド済み bundle を実際に叩く
 ```
 
-superproject の `scripts/verify-appview-facade.cljs` も独立に同じことを報告している
-（`health-only-in-undeployed-facade:orgs/cloud-itonami/app-open-power`）。
+いずれも `<dir>` を**引数の先頭**に置く。gate ごとに「壊して赤くなること」を
+実演した結果は ADR-0001 の表にある。**落ちない検査は劇場である** ——
+実測: `dads-table` が在ることを 1 本で見る検査は、CSS が 1 バイトも入っていない
+ページでも 6 回一致するので**落ちない**。`--color-primitive-blue` は 45 → 0 に
+なるので落ちる。2 つは別の主張なので 2 つの検査にしてある。
 
-**B. 転送先が解決しない。** `wrangler.jsonc` の `AGENTGATEWAY_MCP_ROUTER_URL` と
-`+server.ts` の既定値が指す `mcp.etzhayyim.com`、および route が張られる
-`open-power.etzhayyim.com` の**両方が DNS を解決しない**（`dig +short` が空）。
-対照として apex の `etzhayyim.com` は解決して `GET /` が 200 を返すので、
-測定側の問題ではない。
+## 8. 前の版の README が間違っていた 1 点（訂正）
 
-その結果、ローカルの proxy は **500** を返す:
+2026-08-18 版の §5 は `etzhayyim/com-etzhayyim-app-open-power` を「同じ切り出し元
+から出た兄弟で、どちらが正本かはこの repo の中からは決まらない」と書いていた。
+**これは誤りである。** その名前は GitHub 上で **この repo 自身**に解決する
+（repo id `1305891574` / `created_at 2026-07-19T17:13:18Z` が
+`cloud-itonami/app-open-power` と一致。改名前の名前である）。兄弟は存在せず、
+正本は 1 つしか無い。
 
-```
-POST /xrpc/com.etzhayyim.apps.openPower.listFeeders -> 500 {"message":"Internal Error"}
-```
+`cloud-itonami/app-open-water` / `app-open-swift` が同じ足場（`kotoba/` +
+SvelteKit BFF + BPMN/DMN/DoDAF）の別領域版であるという §5 の記述は、この周では
+検証していない。
 
-**500 は `+server.ts` が意図した応答ではない。** あのコードは upstream が
-非 2xx を返したとき `502` + `{error:'MCP router request failed'}` を返すよう
-書かれている。名前解決の失敗は `fetch` が**投げる**ので、その分岐に入る前に
-落ちて SvelteKit の汎用 500 になる。`fetch` に `catch` が無い。
+## 9. ライセンス
 
-**C. `app.ts` は D1 の binding を持たない。** `POWER_DB` を 19 箇所で使うが、
-`wrangler.jsonc` に `d1_databases` の項目は無い。`worker/` には `package.json` も
-`tsconfig.json` も無いので、**このファイルは型検査もビルドもされていない**
-（`worker/svelte/tsconfig.json` は `svelte/` 配下しか見ない）。
-
-**D. `defence-handlers.ts` はどこからも import されていない。** ファイル冒頭の
-コメント自身が「`app.ts` にこう配線せよ」と書いているが、`app.ts` に `defence` の
-語は 1 つも無い。さらにこの handler は `@etzhayyim/kotodama-host-sdk` を import
-するが、**その依存はこの repo のどの `package.json` にも宣言されていない**。
-
-**E. `CLAUDE.md` の `Local Dev / Deploy` は 3 行とも実行できない。**
-
-| 行 | 実測 |
-|---|---|
-| `cd 60-apps/etzhayyim-project-open-power/worker` | そのパスは無い。**この repo 自身がその directory** である（`migration.edn`） |
-| `wrangler d1 create etzhayyim-open-power` | 作れても binding が無いので何にも繋がらない（§3-C） |
-| `e7m actor deploy .` | `e7m` は PATH に無い |
-
-**F. 雛形が残っている。** `+page.svelte` に埋め込まれた定数は
-`"title":"Worker"` / `"name":"worker"` / `"routeCount":0` / `"routes":[]` で、
-`relativePath` は切り出し前の `60-apps/…` を指したままである。ページの
-`<title>` は `worker` になる。
-
-**G. 環境側の罠（repo の欠陥ではない）。** このマシンでは `npm install` が
-`EALLOWSCRIPTS` で落ちる —— `~/.npmrc` の `allow-scripts[]=` が git 依存の
-準備 install（`npm install --force …`）に漏れ、npm 11.16.0 がそれを
-「project-scoped install では使えない」と拒否する。**空の userconfig で隔離すると
-成功する**ので、これは repo ではなくこの端末の設定である
-（[`docs/operator-quickstart.md`](docs/operator-quickstart.md) §0 に回避策）。
-**この理由で repo 側を「直さない」こと。**
-
-## 4. テストが実際に何かを掴んでいることの確認
-
-`kotoba/` の 5 ケースについて、**3 箇所を壊して、壊した不変条件と落ちたテストが
-一致することを実測した**（3 件とも復元後に `git diff --exit-code` が exit 0、
-再実行で 5 passed に復帰）:
-
-| 壊した箇所 | 落ちたテスト | 報告 |
-|---|---|---|
-| `types.ts` の `OUTAGE_CAUSES` から `vegetation` を削除 | `filters outages + coverage rolls up active` **のみ** | `expected 1 to be 2`（`outageCount`） |
-| `registry.ts` の `defineFeeder` から substation 存在ガードを削除 | `defines against existing substation; rejects missing` **のみ** | `expected 'defined' to be 'substationNotFound'` |
-| `registry.ts` の `listFeeders` から status フィルタを削除 | `lists by substation + status` **のみ** | `expected 2 to be 1` |
-
-**掴めていない箇所**（この周では足していない）: `listOutages` の `status` フィルタ、
-`coverage` の `truncated`、`alreadyExists` 経路、`getSubstation` / `getFeeder` の
-`notFound`、`limit` の上限 200。
-
-## 5. 最近接の repo との境界
-
-- **`etzhayyim/com-etzhayyim-app-open-power`** —— 同じ切り出し元から出た兄弟で、
-  `verify-appview-facade` は**両方に同一の finding** を報告している。どちらが
-  正本かはこの repo の中からは決まらない。
-- **`cloud-itonami/app-open-water` / `app-open-swift`** —— 同じ足場（`kotoba/` +
-  SvelteKit BFF + BPMN/DMN/DoDAF）の別領域版。構造が同型なので、ここに書いた
-  欠陥 A〜F は**そちらでも当たる可能性が高い**（未確認）。
-
-## 6. ライセンス
-
-Apache-2.0（`worker/src/*.ts` の SPDX ヘッダによる）。**ただし `LICENSE` ファイルは
-この repo に無い** —— ヘッダは "see LICENSE at repo root" と書いているが、その
-repo root は切り出し元の `etzhayyim/root` である。
+Apache-2.0（`kotoba/package.json` の宣言による）。**`LICENSE` ファイルはこの repo
+に無い** —— 撤去した `worker/src/*.ts` の SPDX ヘッダは "see LICENSE at repo root" と
+書いていたが、その repo root は切り出し元の `etzhayyim/root` だった。

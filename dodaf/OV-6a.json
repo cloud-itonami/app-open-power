@@ -5,37 +5,46 @@
   "did": "did:web:open-power.etzhayyim.com",
   "format": "json",
   "content": {
+    "enforcementNote": "2026-08-19 の cljs 移行まで、下の 3 つの constraint は worker/src/app.ts が enforce すると書かれていた。そのファイルは deploy されず、D1 の binding も宣言されていなかった（つまり実際には 1 件も enforce されていなかった）ので撤去した。enforcedBy は実測に基づいて書き直してある —— 実装が無い規則は「無い」と書く。",
     "businessRules": [
       {
         "id": "rule.feederBelongsSubstation",
         "statement": "Every feeder MUST originate at a substation node (nodeType='substation').",
         "kind": "constraint",
-        "enforcedBy": "worker/src/app.ts:defineFeeder() validation"
+        "enforcedBy": "kotoba/src/registry.ts:defineFeeder() — 存在しない substation には 'substationNotFound' を返す。kotoba/test/open-power.test.ts が実際にこれを掴んでいる。",
+        "enforcementStatus": "implemented-not-deployed"
       },
       {
         "id": "rule.voltageMonotonicDownstream",
         "statement": "Service-point voltageClass MUST be ≤ originating substation voltageClass (no step-up downstream).",
         "kind": "constraint",
-        "enforcedBy": "worker/src/app.ts:defineFeeder() validation"
+        "enforcedBy": null,
+        "enforcementStatus": "not-implemented",
+        "enforcementNote": "どこにも実装が無い。kotoba/src/registry.ts は voltageClass が語彙に在るかを見るだけで、上流と下流を比較しない（実測 2026-08-19）。"
       },
       {
         "id": "rule.readingMonotonic",
         "statement": "Per service point, kwhImport / kwhExport readings MUST be non-decreasing in time. Negative deltas indicate meter rollover or fault.",
         "kind": "invariant",
-        "enforcedBy": "worker/src/app.ts:recordReading() validation"
+        "enforcedBy": null,
+        "enforcementStatus": "not-implemented",
+        "enforcementNote": "どこにも実装が無い。kotoba/ には recordReading が無く、'kwh' も 'reading' も 1 語も現れない（実測 2026-08-19）。"
       },
       {
         "id": "rule.outageClass",
         "statement": "outage.class derived from customersAffected + durationMin: ≥50k → systemic; ≥5k OR ≥240min → regional; ≥100 → local; else isolated. class∈{systemic,regional} → regulator audit.",
         "kind": "decisionTable",
         "dmnDecisionKey": "openPower.outageClass",
-        "source": "dmn/outage-class.dmn"
+        "source": "dmn/outage-class.dmn",
+        "enforcementStatus": "declared-only",
+        "enforcementNote": "決定表そのものは dmn/outage-class.dmn に在り、それが正本である。これを実行するコードはこの repo に無い（app.ts の classifyOutage() が 1 ルールずつ一致していたが、deploy されないまま撤去された）。"
       },
       {
         "id": "rule.appendOnlyOutage",
         "statement": "Outage records are append-only. Restoration is recorded by setting restored_at via reportOutage with prior outageDid as supersedes.",
         "kind": "invariant",
-        "enforcedBy": "no UPDATE on outages.cause/start"
+        "enforcedBy": "no UPDATE on outages.cause/start",
+        "enforcementStatus": "declared-only"
       }
     ]
   },
@@ -43,5 +52,5 @@
     "dmnDecisionKeys": ["openPower.outageClass"],
     "viewIds": ["open-power.OV-5b"]
   },
-  "version": 1
+  "version": 2
 }

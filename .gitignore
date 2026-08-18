@@ -1,8 +1,14 @@
-# この 6 つは docs/operator-quickstart.md の §1 / §2 / §3 を実行すると必ずできる。
-# それ以前この repo に .gitignore が無かったので、手順どおり動かした人の
-# `git status` に node_modules が 135 パッケージぶん出ていた。
+# shadow-cljs のビルド出力。worker/wrangler.jsonc の main が指す先だが、生成物
+# なので commit しない（scripts/smoke-worker.cljs は「ビルドしてから」実行する
+# gate で、bundle が無ければ exit 2 = 判定できなかった、を返す）。
+dist/
+.shadow-cljs/
+.cpcache/
+
+# kotoba/ の依存（135 packages）はここに入る。移行の対象ではないが、手順どおり
+# `npm install` を実行した人の `git status` を汚さないために無視する。
 node_modules/
 package-lock.json
-.svelte-kit/
+
 .wrangler/
 .DS_Store
