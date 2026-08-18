@@ -1,0 +1,26 @@
+;; open-power appview の Worker。:esm、先例は cloud-itonami-marketplace-listing と
+;; cloud-itonami/app-ongakuka。
+;;
+;; worker/wrangler.jsonc の main は ../dist/worker.js を指し、それは **この** bundle
+;; ——src/ のソースをコンパイルしたもの——である。移行前の main は
+;; svelte/.svelte-kit/cloudflare/_worker.js（tree にも disk にも存在しないビルド出力）を
+;; 指していて、読み手が開く worker/src/app.ts はどの bundle にも入っていなかった。
+;; それが docs/adr/0001 の記録した欠陥である。
+{:deps {:aliases [:cljs]}
+ :builds
+ {:worker
+  {:target :esm
+   :output-dir "dist"
+   :modules {:worker {:exports {default openpower.worker/handler}}}
+   ;; :warnings-as-errors は装飾ではない。shadow は未宣言 var や改名された var を
+   ;; WARNING として扱うので、`shadow-cljs release worker` が exit 0 のまま
+   ;; 壊れた bundle を書き出す。つまり「ビルドが通った」は検査ではない——落ちない
+   ;; からである。
+   ;;
+   ;; ⚠ この key は :compiler-options の下でなければならない。shadow が読むのは
+   ;; `[:compiler-options :warnings-as-errors]`（shadow/build/compiler.clj の
+   ;; `should-warning-throw?`）で、:build-options に置くと**黙って無視される**——
+   ;; それはこの option が防ごうとしている当のもの、落ちない検査そのものになる。
+   :compiler-options {:output-feature-set :es2020
+                      :infer-externs :auto
+                      :warnings-as-errors true}}}}

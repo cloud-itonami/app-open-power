@@ -1,11 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "etzhayyim-open-power",
-  "main": "svelte/.svelte-kit/cloudflare/_worker.js",
+  // ../dist/worker.js は shadow-cljs が src/openpower/ からビルドする bundle。
+  // 移行前ここは svelte/.svelte-kit/cloudflare/_worker.js を指しており、その
+  // パスは tree にも disk にも存在しなかった（docs/adr/0001）。
+  "main": "../dist/worker.js",
   "compatibility_date": "2026-04-20",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
   "account_id": "4da88288dc30d9ee257f319d3c33ecf0",
   "workers_dev": false,
   "routes": [
@@ -17,16 +17,10 @@
   "vars": {
     "APP_HANDLE": "open-power.etzhayyim.com",
     "PRIMARY_DID": "did:web:open-power.etzhayyim.com",
-    "APP_FRAMEWORK": "sveltekit-edge-bff",
+    "APP_FRAMEWORK": "clojurescript-shadow-esm",
     "AGENTGATEWAY_MCP_ROUTER_URL": "https://mcp.etzhayyim.com/xrpc/com.etzhayyim.mcp.message"
   },
   "observability": {
     "enabled": true
-  },
-  "assets": {
-    "directory": "./svelte/.svelte-kit/cloudflare/client",
-    "binding": "ASSETS",
-    "html_handling": "auto-trailing-slash",
-    "not_found_handling": "none"
   }
 }
