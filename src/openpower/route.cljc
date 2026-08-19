@@ -77,6 +77,35 @@
             "https://mcp.etzhayyim.com/xrpc/com.etzhayyim.mcp.message")
         (str/replace #"/+$" ""))))
 
+(def ^:private drop-headers
+  "上流へ渡さない header。
+
+  `host` —— 移行前の SvelteKit route も削っていた（宛先が変わるので嘘になる）。
+  `content-length` / `content-encoding` —— body を JSON-RPC の封筒に詰め直す
+  ので、元の長さもエンコーディングも当てはまらない。
+
+  **それ以外は全部渡す。** 移行前は `new Headers(request.headers)` から host を
+  削るだけで、`authorization` も上流に届いていた。移行で 3 つの header を新規に
+  作る形にしたとき、それが黙って消えていた —— しかも preflight は
+  `access-control-allow-headers: content-type,authorization` と許可を宣言した
+  ままだったので、ブラウザには送ってよいと言いながら捨てていたことになる。"
+  #{"host" "content-length" "content-encoding"})
+
+(defn relay-headers
+  "受け取った header を、上流へ渡す形にする。`in` は [[k v] …] の列。
+
+  ここが `.cljc` にあるのは、これがビルドもブラウザも無しに固定できる**判断**
+  だからである。`js/Headers` を worker 側で組み立てる形にすると、何が渡って
+  何が落ちるかを述べたテストが書けない —— そしてこの欠陥は、まさに誰も
+  『何が転送されるか』を訊かなかったから 21 repo で生き延びた。"
+  [in nsid]
+  (into {"content-type" "application/json"
+         "x-etzhayyim-bff" "cljs-worker"
+         "x-etzhayyim-xrpc-method" nsid}
+        (comp (remove (fn [[k _]] (contains? drop-headers (str/lower-case k))))
+              (map (fn [[k v]] [(str/lower-case k) v])))
+        in))
+
 (defn unwrap-mcp
   "MCP router の応答から、呼び手に返す値を取り出す。
 
