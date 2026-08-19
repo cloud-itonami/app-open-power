@@ -150,12 +150,13 @@ CLI 自身も「適用しなかった軸について pass は何も言わない�
 
 ## 検証（この ADR を書いた時点で実際に通したもの）
 
-- `openpower.route-test`: **6 tests / 29 assertions / 0 failures**（nbb、ビルド不要）
+- `openpower.route-test`: **7 tests / 37 assertions / 0 failures**（nbb、ビルド不要）
 - ページ描画 → design-quality **100.00**、gate PASS。`--extra-axes` でも 100.00
-- `shadow-cljs release worker`: **55 files / 12 compiled / 0 warnings / 6.10s**、
-  `dist/worker.js` **246,118 B**
+- `shadow-cljs release worker`: **55 files / 12 compiled / 0 warnings**、
+  `dist/worker.js` **246,118 B**（移行時点の値。`fa84dff` で中継ヘッダの転送が
+  入り、現在は 253,758 B / `643011e5…` —— bundle の数は commit に紐づく）
 - `scripts/smoke-worker.cljs`: ビルド済み bundle を import して **18 項目 PASS**
-- `scripts/verify-docs-claims.cljs`: **20 claim すべて PASS**、exit 0
+- `scripts/verify-docs-claims.cljs`: **22 claim すべて PASS**、exit 0
 - **workerd で実測**（`wrangler dev --local`、`nodejs_compat` 無しの設定）:
   `GET /` 200 HTML 82,119 B / `GET /health` 200（自分の route を名乗る）/
   `POST /xrpc/` 400 / `OPTIONS /xrpc/x` 204 / `GET /nope` 404 / `POST /health` 405 /

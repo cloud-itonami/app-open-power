@@ -51,7 +51,7 @@ npx --yes nbb --classpath "$CP" /tmp/run-tests.cljs
 ```
 Testing openpower.route-test
 
-Ran 6 tests containing 29 assertions.
+Ran 7 tests containing 37 assertions.
 0 failures, 0 errors.
 ```
 
@@ -107,11 +107,19 @@ done
 [:worker] Build completed. (55 files, 12 compiled, 0 warnings, 6.10s)
 ```
 
-`dist/worker.js` は **246,118 B**、sha256
-`4458a5a7338f9b7d517ad5fef79c19a47c35534aaceeb0b64da05a8829ef58bf`
-（cold cache からのビルドで 3 回とも同一だった。**incremental だと同じソースでも
-違うバイト列が安定して出る**ので、ハッシュを比べるときは必ず `.shadow-cljs` を
-消してから）。
+**commit `fa84dff` を cold cache でビルドすると** `dist/worker.js` は
+**253,758 B**、sha256
+`643011e5fea6fec9f2d3ab0161273e1eeea46635a703e9b068f38d72e1e5d4b4`。
+
+**この 2 つの数は commit に紐づく。** `src/` が 1 バイト変われば別の値になる ——
+移行時の `246,118 B` / `4458a5a7…` は `agent/relay-headers`（`fa84dff`、
+中継ヘッダの転送）が worker.cljs と route.cljc を変えた時点で古くなった。
+**HEAD が `fa84dff` でないなら、上の値と比べずに derive し直すこと**
+（`shasum -a 256 dist/worker.js`）。ここに書いてあるのは「いま出るはずの値」では
+なく「その commit で出た値」である。
+
+そして cold cache でのみ再現する（**incremental だと同じソースでも違うバイト列が
+安定して出る**ので、ハッシュを比べるときは必ず `.shadow-cljs` を消してから）。
 
 **「ビルドが通った」は検査ではない。** shadow は未宣言 var を *warning* として扱い
 exit 0 のまま壊れた bundle を書き出す。`shadow-cljs.edn` の
@@ -135,7 +143,7 @@ npx --yes nbb scripts/smoke-worker.cljs dist/worker.js
 npx --yes nbb scripts/verify-docs-claims.cljs .
 ```
 
-20 claim すべて PASS、exit 0。`<dir>` は**引数の先頭**に置く。
+22 claim すべて PASS、exit 0。`<dir>` は**引数の先頭**に置く。
 
 ## 7. workerd で動かす（実際のランタイム）
 

@@ -90,7 +90,10 @@
        (catch :default _ nil)))
 (defn strip-jsonc [s] (str/replace s #"(?m)^\s*//.*$" ""))
 
+(def claims-run (atom 0))
+
 (defn check! [label expected actual]
+  (swap! claims-run inc)
   (let [ok (= expected actual)]
     (println (str (if ok "PASS" "FAIL") "\t" (name label)
                   "\texpected=" (pr-str expected) "\tactual=" (pr-str actual)))
@@ -205,7 +208,53 @@
                 (try (let [d (cljs.reader/read-string s)]
                        (and (vector? d) (map? (first d))
                             (= "accepted" (:adr/status (first d)))))
-                     (catch :default _ false)))))))
+                     (catch :default _ false)))))
+
+    ;; ── ここから下は「散文の中の数」を tree から derive する ────────────────
+    ;;
+    ;; テストの本数は quickstart と ADR が引用しているが、**それを derive する
+    ;; ものが無かった**ので黙って古くなった。実測 2026-08-19: `agent/relay-headers`
+    ;; （`fa84dff`、中継ヘッダの転送）が test を 1 本足し、両文書は `6 tests` と
+    ;; 書いたまま、suite は 7 本走っていた。deftest の数は tree から数えられるので
+    ;; pin する。
+    ;;
+    ;; **assertion の数は claim にしない。** ここからは derive できない ——
+    ;; `testing` に入れ子になった `is` や複数行の form があるので grep と runner が
+    ;; 食い違う（実測 2026-08-19、この repo では grep 35 に対し runner 37）。
+    ;; 自信を持って間違える検査は、無い検査より悪い。あの数を検査するのは suite 自身。
+    (let [t (slurp* "test/openpower/route_test.cljc")
+          docs ["README.md"
+                "docs/operator-quickstart.md"
+                "docs/adr/0001-migrate-the-appview-from-typescript-to-clojurescript.edn"]
+          unreadable (vec (remove #(some? (slurp* %)) (cons "test/openpower/route_test.cljc" docs)))]
+      (if (seq unreadable)
+        (undet! (str "unreadable: " (str/join ", " unreadable)))
+        (let [n (count (re-seq #"(?m)^\(deftest\s" t))]
+          (check! :declared-tests []
+                  (vec (for [d docs
+                             m (re-seq #"(\d+)\s*tests" (slurp* d))
+                             :let [q (js/parseInt (second m))]
+                             :when (not= q n)]
+                         (str d " says " q " tests, the file declares " n)))))))
+
+    ;; この script が検査する claim の数もまた、文書が引用している数である。
+    ;; 誰も derive していなかったので、同型のずれが起こりうる（sibling の
+    ;; app-open-airplane では実際に ADR が 21、script が 23 でずれていた）。
+    ;; だから claim 数は自分自身を数える。合計は **この検査自身を含む**ので
+    ;; (inc @claims-run) —— claim を足して文書を直さなければ、ここが赤くなる。
+    (let [docs ["README.md"
+                "docs/operator-quickstart.md"
+                "docs/adr/0001-migrate-the-appview-from-typescript-to-clojurescript.edn"]
+          total (inc @claims-run)
+          unreadable (vec (remove #(some? (slurp* %)) docs))]
+      (if (seq unreadable)
+        (undet! (str "doc unreadable: " (str/join ", " unreadable)))
+        (check! :documented-claim-count []
+                (vec (for [d docs
+                           m (re-seq #"\*{0,2}(\d+)\*{0,2}\s*claim" (slurp* d))
+                           :let [n (js/parseInt (second m))]
+                           :when (not= n total)]
+                       (str d " says " n ", script runs " total))))))))
 
 (let [u @undetermined f @failures]
   (when (seq u)
