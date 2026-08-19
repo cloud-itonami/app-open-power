@@ -60,9 +60,12 @@
          (fn [input]
            (js/fetch url
                      #js {:method "POST"
-                          :headers #js {"content-type" "application/json"
-                                        "x-etzhayyim-bff" "cljs-worker"
-                                        "x-etzhayyim-xrpc-method" nsid}
+                          ;; 受け取った header を渡す。新規に 3 つ作る形だと
+                          ;; authorization が黙って消える（route/drop-headers）。
+                          :headers (clj->js (route/relay-headers
+                                             (map (fn [pair] [(aget pair 0) (aget pair 1)])
+                                                  (es6-iterator-seq (.entries (.-headers req))))
+                                             nsid))
                           :body (js/JSON.stringify
                                  #js {:jsonrpc "2.0"
                                       :id (.randomUUID js/crypto)
