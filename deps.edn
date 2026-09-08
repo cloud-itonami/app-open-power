@@ -11,7 +11,12 @@
 ;; 実装した別の面で、この bundle には入らないし、この移行の対象でもない
 ;; （docs/adr/0001 §「移行しなかったもの」）。
 {:paths ["src"]
- :deps {io.github.kotoba-lang/jp-go-digital-design-system
+ :deps {
+        ;; kotoba.lang.text, not clojure.string. Pinned as an explicit floor:
+        ;; tools.deps takes the NEWEST sha it is shown, so without a floor here
+        ;; this repo silently rides whatever a sibling happens to name.
+        io.github.kotoba-lang/text {:git/sha "73bdb13ae7a3d004b44bca08be03a3191157a38f"}
+       io.github.kotoba-lang/jp-go-digital-design-system
         {:git/url "https://github.com/kotoba-lang/jp-go-digital-design-system"
          :git/sha "2e2d191e9e1731ce6865c79dab163a5d74249053"}}
  :aliases

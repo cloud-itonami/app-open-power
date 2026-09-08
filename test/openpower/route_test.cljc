@@ -1,6 +1,6 @@
 (ns openpower.route-test
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [openpower.route :as route]
             [openpower.view :as view]))
 
