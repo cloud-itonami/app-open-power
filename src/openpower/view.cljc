@@ -16,7 +16,7 @@
   (:require [jp-go-dds.core :as dds]
             [jp-go-dds.page :as page]
             [jp-go-dds.tokens :as tokens]
-            [clojure.string :as str]))
+            [kotoba.lang.text :as str]))
 
 (def app-css
   "app 固有の最小 CSS。`--hig-*` 契約だけを使う（bridge が DADS の上に再定義する）。
@@ -30,7 +30,7 @@
 
 (defn- route-rows [routes]
   (mapv (fn [r]
-          [(str/upper-case (name (:route/method r)))
+          [(str/upper (name (:route/method r)))
            [:span {:class "op-mono"} (:route/path r)]
            (:route/doc r)])
         routes))
