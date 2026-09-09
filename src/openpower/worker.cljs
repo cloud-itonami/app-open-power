@@ -16,7 +16,7 @@
   (:require [openpower.route :as route]
             [openpower.view :as view]
             [shadow.resource :as rc]
-            [clojure.string :as str]))
+            [kotoba.lang.text :as str]))
 
 (def ^:private dds-css
   "DADS の CSS はビルド時に bundle へ焼く。外部リクエストゼロが design system の
@@ -128,7 +128,7 @@
                                        :content-type "application/json; charset=utf-8"
                                        :extra {"allow" allow}})
       (json {:error "Not Found"
-             :routes (mapv (fn [r] (str (str/upper-case (name (:route/method r)))
+             :routes (mapv (fn [r] (str (str/upper (name (:route/method r)))
                                         " " (:route/path r)))
                            route/routes)}
             404))))
