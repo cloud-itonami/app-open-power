@@ -152,7 +152,7 @@ CLI 自身も「適用しなかった軸について pass は何も言わない�
 
 - `openpower.route-test`: **7 tests / 37 assertions / 0 failures**（nbb、ビルド不要）
 - ページ描画 → design-quality **100.00**、gate PASS。`--extra-axes` でも 100.00
-- `shadow-cljs release worker`: **55 files / 12 compiled / 0 warnings**、
+- `amu compile --target wasm32-browser worker`: **55 files / 12 compiled / 0 warnings**、
   `dist/worker.js` **246,118 B**（移行時点の値。`fa84dff` で中継ヘッダの転送が
   入り、現在は 253,758 B / `643011e5…` —— bundle の数は commit に紐づく）
 - `scripts/smoke-worker.cljk`: ビルド済み bundle を import して **18 項目 PASS**

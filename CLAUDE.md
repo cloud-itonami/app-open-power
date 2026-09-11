@@ -52,8 +52,8 @@
 
 ```bash
 clojure -P -M:cljs                                  # 依存を取る
-npx shadow-cljs release worker                      # dist/worker.js を作る
-npx nbb scripts/smoke-worker.cljk dist/worker.js    # bundle を実際に叩く
+amu compile --target wasm32-browser worker                      # dist/worker.js を作る
+kbb --backend sci scripts/smoke-worker.cljk dist/worker.js    # bundle を実際に叩く
 cd worker && npx wrangler dev --local               # workerd で動かす
 ```
 
