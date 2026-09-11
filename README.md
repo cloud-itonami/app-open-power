@@ -150,8 +150,8 @@ router の `tools/call` に詰めて投げる（移行前の `[...path]` と同�
 ## 7. 検査
 
 ```bash
-nbb scripts/verify-docs-claims.cljk .            # この README の数を tree から derive し直す
-nbb scripts/smoke-worker.cljk dist/worker.js     # ビルド済み bundle を実際に叩く
+kbb --backend sci scripts/verify-docs-claims.cljk .            # この README の数を tree から derive し直す
+kbb --backend sci scripts/smoke-worker.cljk dist/worker.js     # ビルド済み bundle を実際に叩く
 ```
 
 いずれも `<dir>` を**引数の先頭**に置く。gate ごとに「壊して赤くなること」を

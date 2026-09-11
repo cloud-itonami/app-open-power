@@ -1,4 +1,4 @@
-#!/usr/bin/env nbb
+#!/usr/bin/env kbb
 ;; verify-docs-claims — README.md と docs/operator-quickstart.md が述べる数を
 ;; tree から derive し直し、prose と tree が食い違ったら落ちる。
 ;;
@@ -18,7 +18,7 @@
 ;; の 2 つに分ける。1 つ目だけだと kotoba/ に appview を書き戻せてしまい、
 ;; 2 つ目だけだと appview の TypeScript の復活を見逃す。
 ;;
-;; Usage:  nbb scripts/verify-docs-claims.cljk [<dir>]     (<dir> を **先頭** に)
+;; Usage:  kbb --backend sci scripts/verify-docs-claims.cljk [<dir>]     (<dir> を **先頭** に)
 ;; Exit:   0 全 claim 成立 · 1 claim が偽 · 2 答えられなかった
 
 (require '["node:fs" :as fs]

@@ -43,7 +43,7 @@ cat > /tmp/run-tests.cljs <<'RUNNER'
 (require '[cljs.test :refer [run-tests]] 'openpower.route-test)
 (run-tests 'openpower.route-test)
 RUNNER
-npx --yes nbb --classpath "$CP" /tmp/run-tests.cljs
+npx --yes kbb --backend sci --classpath "$CP" /tmp/run-tests.cljs
 ```
 
 実際の出力:
@@ -59,7 +59,7 @@ Ran 7 tests containing 37 assertions.
 
 ```bash
 K=/Users/junkawasaki/github/com-junkawasaki/orgs/kotoba-lang
-cd $K/design-quality && npx --yes nbb -m design-quality.cli score /tmp/page.html --min 95
+cd $K/design-quality && npx --yes kbb --backend sci -m design-quality.cli score /tmp/page.html --min 95
 ```
 
 実際の出力:
@@ -93,7 +93,7 @@ bundle へ入った」を**別々に**検査している（§5）。
 rm -rf .shadow-cljs dist   # :esm の出力が byte 再現するのは cold cache のときだけ
 for i in $(seq 1 60); do
   node /Users/junkawasaki/github/com-junkawasaki/scripts/resource-guard.mjs \
-    run build -- npx --yes shadow-cljs release worker > /tmp/b.log 2>&1
+    run build -- npx --yes amu compile --target wasm32-browser worker > /tmp/b.log 2>&1
   rc=$?
   [ $rc -eq 0 ] && { echo "BUILD OK"; tail -1 /tmp/b.log; break; }
   [ $rc -ne 2 ] && { echo "BUILD FAILED rc=$rc"; tail -20 /tmp/b.log; break; }
@@ -131,7 +131,7 @@ exit 0 のまま壊れた bundle を書き出す。`shadow-cljs.edn` の
 ## 5. ビルド済み bundle を実際に叩く
 
 ```bash
-npx --yes nbb scripts/smoke-worker.cljk dist/worker.js
+npx --yes kbb --backend sci scripts/smoke-worker.cljk dist/worker.js
 ```
 
 18 項目すべて PASS。exit は **0 成功 / 1 期待と違う / 2 判定できなかった**
@@ -140,7 +140,7 @@ npx --yes nbb scripts/smoke-worker.cljk dist/worker.js
 ## 6. README の数を tree から derive し直す
 
 ```bash
-npx --yes nbb scripts/verify-docs-claims.cljk .
+npx --yes kbb --backend sci scripts/verify-docs-claims.cljk .
 ```
 
 22 claim すべて PASS、exit 0。`<dir>` は**引数の先頭**に置く。

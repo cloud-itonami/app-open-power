@@ -13,7 +13,7 @@
    :output-dir "dist"
    :modules {:worker {:exports {default openpower.worker/handler}}}
    ;; :warnings-as-errors は装飾ではない。shadow は未宣言 var や改名された var を
-   ;; WARNING として扱うので、`shadow-cljs release worker` が exit 0 のまま
+   ;; WARNING として扱うので、`amu compile --target wasm32-browser worker` が exit 0 のまま
    ;; 壊れた bundle を書き出す。つまり「ビルドが通った」は検査ではない——落ちない
    ;; からである。
    ;;
