@@ -10,8 +10,8 @@
         "id": "sys.worker",
         "name": "open-power Worker",
         "platform": "Cloudflare Workers",
-        "entrypoint": "src/openpower/worker.cljs",
-        "entrypointNote": "2026-08-19 の cljs 移行まで、ここは worker/src/app.ts を指していた。そのファイルは deploy されず（wrangler の main は SvelteKit のビルド出力を指していた）、使っていた D1 の binding も wrangler.jsonc に宣言されていなかったので、移行では持ち越さず撤去した。現在 deploy される entrypoint は src/openpower/worker.cljs だが、**下の 8 interface を実装していない** —— XRPC を MCP router へ中継するだけである。したがってこの SV-1 は設計であって、現在の実装状況ではない。",
+        "entrypoint": "src/openpower/worker.cljk",
+        "entrypointNote": "2026-08-19 の cljs 移行まで、ここは worker/src/app.ts を指していた。そのファイルは deploy されず（wrangler の main は SvelteKit のビルド出力を指していた）、使っていた D1 の binding も wrangler.jsonc に宣言されていなかったので、移行では持ち越さず撤去した。現在 deploy される entrypoint は src/openpower/worker.cljk だが、**下の 8 interface を実装していない** —— XRPC を MCP router へ中継するだけである。したがってこの SV-1 は設計であって、現在の実装状況ではない。",
         "interfaceImplementationStatus": "designed-not-implemented",
         "interfaces": [
           { "id": "if.xrpc.defineSubstation", "kind": "XRPC", "method": "POST", "nsid": "com.etzhayyim.apps.openPower.defineSubstation" },

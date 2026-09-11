@@ -18,7 +18,7 @@
 ;; の 2 つに分ける。1 つ目だけだと kotoba/ に appview を書き戻せてしまい、
 ;; 2 つ目だけだと appview の TypeScript の復活を見逃す。
 ;;
-;; Usage:  nbb scripts/verify-docs-claims.cljs [<dir>]     (<dir> を **先頭** に)
+;; Usage:  nbb scripts/verify-docs-claims.cljk [<dir>]     (<dir> を **先頭** に)
 ;; Exit:   0 全 claim 成立 · 1 claim が偽 · 2 答えられなかった
 
 (require '["node:fs" :as fs]
@@ -138,7 +138,7 @@
         (check! :claude-md-describes-cljs true
                 (and (not (str/includes? c "Single CF Worker (`src/app.ts`)"))
                      (str/includes? c "shadow-cljs")
-                     (str/includes? c "src/openpower/worker.cljs")))))
+                     (str/includes? c "src/openpower/worker.cljk")))))
 
     ;; production の言語。kotoba/ は移行の対象外なので別々に数える（冒頭の注記）。
     (let [prod (remove #(str/starts-with? % "scripts/") files)
@@ -190,8 +190,8 @@
     ;; 構造で主張し、部分文字列の禁止ではやらない: 最初の版は "routeCount" をどこにも
     ;; 許さない検査で、旧欠陥を説明する docstring に引っかかった。コメントで落とせる
     ;; 検査は、コードではなく散文についての検査である。
-    (let [v (slurp* "src/openpower/view.cljc")
-          w (slurp* "src/openpower/worker.cljs")]
+    (let [v (slurp* "src/openpower/view.cljk")
+          w (slurp* "src/openpower/worker.cljk")]
       (if (or (nil? v) (nil? w))
         (undet! "view.cljc or worker.cljs unreadable")
         (check! :page-renders-route-table true
@@ -222,11 +222,11 @@
     ;; `testing` に入れ子になった `is` や複数行の form があるので grep と runner が
     ;; 食い違う（実測 2026-08-19、この repo では grep 35 に対し runner 37）。
     ;; 自信を持って間違える検査は、無い検査より悪い。あの数を検査するのは suite 自身。
-    (let [t (slurp* "test/openpower/route_test.cljc")
+    (let [t (slurp* "test/openpower/route_test.cljk")
           docs ["README.md"
                 "docs/operator-quickstart.md"
                 "docs/adr/0001-migrate-the-appview-from-typescript-to-clojurescript.edn"]
-          unreadable (vec (remove #(some? (slurp* %)) (cons "test/openpower/route_test.cljc" docs)))]
+          unreadable (vec (remove #(some? (slurp* %)) (cons "test/openpower/route_test.cljk" docs)))]
       (if (seq unreadable)
         (undet! (str "unreadable: " (str/join ", " unreadable)))
         (let [n (count (re-seq #"(?m)^\(deftest\s" t))]

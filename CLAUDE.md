@@ -22,12 +22,12 @@
 
 ## Architecture — 実装
 
-- **Runtime**: 単一の CF Worker。**ClojureScript**（`src/openpower/worker.cljs`）を
+- **Runtime**: 単一の CF Worker。**ClojureScript**（`src/openpower/worker.cljk`）を
   shadow-cljs `:target :esm` で `dist/worker.js` にビルドし、`worker/wrangler.jsonc`
   の `main` がそれを指す。移行前は `main` が SvelteKit のビルド出力を指し、読み手が
   開く `worker/src/app.ts` はどの bundle にも入っていなかった（`docs/adr/0001`）。
-- **判断は `.cljc`**: route 表は `src/openpower/route.cljc`、ページは
-  `src/openpower/view.cljc`。`worker.cljs` だけが Request/Response に触る。
+- **判断は `.cljc`**: route 表は `src/openpower/route.cljk`、ページは
+  `src/openpower/view.cljk`。`worker.cljs` だけが Request/Response に触る。
 - **deploy される面が答えるもの**: `GET /`（説明ページ）/ `GET /health` /
   `POST /xrpc/:nsid`（MCP router へ中継）。**上の 8 XRPC は実装していない。**
 - **UI**: `jp-go-digital-design-system`（デジタル庁デザインシステム）。`--hig-*`
@@ -53,7 +53,7 @@
 ```bash
 clojure -P -M:cljs                                  # 依存を取る
 npx shadow-cljs release worker                      # dist/worker.js を作る
-npx nbb scripts/smoke-worker.cljs dist/worker.js    # bundle を実際に叩く
+npx nbb scripts/smoke-worker.cljk dist/worker.js    # bundle を実際に叩く
 cd worker && npx wrangler dev --local               # workerd で動かす
 ```
 
