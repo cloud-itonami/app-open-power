@@ -22,7 +22,7 @@
 
 ## 1. deploy される面が答えるもの
 
-route 表は `src/openpower/route.cljc` の `routes` という 1 つの値で、
+route 表は `src/openpower/route.cljk` の `routes` という 1 つの値で、
 **ランディングページはその値を描く**。だから「在る route」と「ページが宣伝する
 route」が食い違えない。
 
@@ -128,7 +128,7 @@ router の `tools/call` に詰めて投げる（移行前の `[...path]` と同�
 | `rule.voltageMonotonicDownstream` | `app.ts:defineFeeder()` | **not-implemented** —— `registry.ts` は voltageClass が語彙に在るかを見るだけで、上流と下流を比較しない |
 | `rule.readingMonotonic` | `app.ts:recordReading()` | **not-implemented** —— `kotoba/` に `recordReading` は無く、`kwh` も `reading` も 1 語も現れない |
 
-`SV-1` の `entrypoint` は `src/openpower/worker.cljs` にしたうえで、その entrypoint が
+`SV-1` の `entrypoint` は `src/openpower/worker.cljk` にしたうえで、その entrypoint が
 **8 interface を実装していない**ことを `designed-not-implemented` として明示した。
 
 ## 6. この repo に在るもの（35 ファイル）
@@ -142,7 +142,7 @@ router の `tools/call` に詰めて投げる（移行前の `[...path]` と同�
 
 手を触れていない 12 ファイル（`README.edn` / `migration.edn` /
 `worker/kotodama.jsonld` / `bpmn/`×2 / `dmn/`×1 / `forms/`×2 / `dodaf/` のうち 4）は
-**1 バイトも変わっていない**。sha256 を `scripts/verify-docs-claims.cljs` に固定して
+**1 バイトも変わっていない**。sha256 を `scripts/verify-docs-claims.cljk` に固定して
 ある。意図して変えた `worker/wrangler.jsonc` / `CLAUDE.md` / `dodaf/SV-1.json` /
 `dodaf/OV-6a.json` はその集合に入れず、内容で検査する ——
 意図した変更と勝手な変更を区別するためである。
@@ -150,8 +150,8 @@ router の `tools/call` に詰めて投げる（移行前の `[...path]` と同�
 ## 7. 検査
 
 ```bash
-nbb scripts/verify-docs-claims.cljs .            # この README の数を tree から derive し直す
-nbb scripts/smoke-worker.cljs dist/worker.js     # ビルド済み bundle を実際に叩く
+nbb scripts/verify-docs-claims.cljk .            # この README の数を tree から derive し直す
+nbb scripts/smoke-worker.cljk dist/worker.js     # ビルド済み bundle を実際に叩く
 ```
 
 いずれも `<dir>` を**引数の先頭**に置く。gate ごとに「壊して赤くなること」を

@@ -81,7 +81,7 @@ gate: aggregate 100.00 >= min 95.00 -> PASS
 **この 100.00 が保証する範囲は狭い。** CLI 自身が「適用しなかった軸について
 pass は何も言わない」と出力している。デザインシステムを 1 つも使わないページでも
 96.63 が出て `--min 95` を通ることが別途測られている。だから
-`scripts/smoke-worker.cljs` の側で「component を呼んだ」と「stylesheet が実際に
+`scripts/smoke-worker.cljk` の側で「component を呼んだ」と「stylesheet が実際に
 bundle へ入った」を**別々に**検査している（§5）。
 
 ## 4. ビルド（必ず resource guard を通す）
@@ -125,13 +125,13 @@ done
 exit 0 のまま壊れた bundle を書き出す。`shadow-cljs.edn` の
 `:compiler-options {:warnings-as-errors true}` がそれを exit 1 に変える。
 ⚠ この key を `:build-options` の下に置くと**黙って無視される** —— shadow が読むのは
-`[:compiler-options :warnings-as-errors]` だけである。`scripts/verify-docs-claims.cljs`
+`[:compiler-options :warnings-as-errors]` だけである。`scripts/verify-docs-claims.cljk`
 は EDN として読んで場所を確かめる（grep では見ない。自分のコメントで緑になるため）。
 
 ## 5. ビルド済み bundle を実際に叩く
 
 ```bash
-npx --yes nbb scripts/smoke-worker.cljs dist/worker.js
+npx --yes nbb scripts/smoke-worker.cljk dist/worker.js
 ```
 
 18 項目すべて PASS。exit は **0 成功 / 1 期待と違う / 2 判定できなかった**
@@ -140,7 +140,7 @@ npx --yes nbb scripts/smoke-worker.cljs dist/worker.js
 ## 6. README の数を tree から derive し直す
 
 ```bash
-npx --yes nbb scripts/verify-docs-claims.cljs .
+npx --yes nbb scripts/verify-docs-claims.cljk .
 ```
 
 22 claim すべて PASS、exit 0。`<dir>` は**引数の先頭**に置く。

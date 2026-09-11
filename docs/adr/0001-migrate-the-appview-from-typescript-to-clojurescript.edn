@@ -38,9 +38,9 @@
 
 **appview を ClojureScript に移し、appview の TypeScript と Svelte を撤去する。**
 
-    src/openpower/route.cljc    判断（どの handler が答えるか）
-    src/openpower/view.cljc     ページ（jp-go-dds の hiccup）
-    src/openpower/worker.cljs   Request/Response に触る唯一の層
+    src/openpower/route.cljk    判断（どの handler が答えるか）
+    src/openpower/view.cljk     ページ（jp-go-dds の hiccup）
+    src/openpower/worker.cljk   Request/Response に触る唯一の層
             ↓ shadow-cljs :target :esm
     dist/worker.js              worker/wrangler.jsonc の main が指すもの
 
@@ -127,7 +127,7 @@ cloud-itonami-marketplace-listing。
 | `rule.voltageMonotonicDownstream` | `app.ts:defineFeeder()` | **`null` / not-implemented** —— `registry.ts` は voltageClass が語彙に在るかを見るだけで上流と下流を比較しない |
 | `rule.readingMonotonic` | `app.ts:recordReading()` | **`null` / not-implemented** —— `kotoba/` に `recordReading` は無く、`kwh` も `reading` も 1 語も現れない |
 
-`SV-1` の `entrypoint` は `src/openpower/worker.cljs` にしたうえで、
+`SV-1` の `entrypoint` は `src/openpower/worker.cljk` にしたうえで、
 **その entrypoint が 8 interface を実装していない**ことを
 `interfaceImplementationStatus: designed-not-implemented` として明示した。
 移行前は『実装がある』と読める書き方のまま、実際には 1 つも deploy されていな
@@ -155,8 +155,8 @@ CLI 自身も「適用しなかった軸について pass は何も言わない�
 - `shadow-cljs release worker`: **55 files / 12 compiled / 0 warnings**、
   `dist/worker.js` **246,118 B**（移行時点の値。`fa84dff` で中継ヘッダの転送が
   入り、現在は 253,758 B / `643011e5…` —— bundle の数は commit に紐づく）
-- `scripts/smoke-worker.cljs`: ビルド済み bundle を import して **18 項目 PASS**
-- `scripts/verify-docs-claims.cljs`: **22 claim すべて PASS**、exit 0
+- `scripts/smoke-worker.cljk`: ビルド済み bundle を import して **18 項目 PASS**
+- `scripts/verify-docs-claims.cljk`: **22 claim すべて PASS**、exit 0
 - **workerd で実測**（`wrangler dev --local`、`nodejs_compat` 無しの設定）:
   `GET /` 200 HTML 82,119 B / `GET /health` 200（自分の route を名乗る）/
   `POST /xrpc/` 400 / `OPTIONS /xrpc/x` 204 / `GET /nope` 404 / `POST /health` 405 /

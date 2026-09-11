@@ -1,5 +1,5 @@
 # shadow-cljs のビルド出力。worker/wrangler.jsonc の main が指す先だが、生成物
-# なので commit しない（scripts/smoke-worker.cljs は「ビルドしてから」実行する
+# なので commit しない（scripts/smoke-worker.cljk は「ビルドしてから」実行する
 # gate で、bundle が無ければ exit 2 = 判定できなかった、を返す）。
 dist/
 .shadow-cljs/
