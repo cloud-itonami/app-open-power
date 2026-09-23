@@ -12,3 +12,4 @@ package-lock.json
 
 .wrangler/
 .DS_Store
+.nbb/
