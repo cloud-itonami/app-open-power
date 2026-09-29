@@ -43,7 +43,7 @@
    :shadow-output-dir "dist"
    :shadow-export "openpower.worker/handler"})
 
-;; 移行で 1 バイトも触っていないファイル。wrangler.jsonc / CLAUDE.md / README.md /
+;; 移行で 1 バイトも触っていないファイル。wrangler.jsonc / AGENTS.md / README.md /
 ;; docs/operator-quickstart.md / dodaf/SV-1.json / dodaf/OV-6a.json は **意図して**
 ;; 変えたのでこの集合に無く、下で内容として検査する。意図した変更と勝手な変更を
 ;; 区別するためである。
@@ -131,10 +131,10 @@
                                 (str/includes? % "/svelte/"))
                            files)))
 
-    ;; CLAUDE.md はもう TypeScript ランタイムを名乗らない
-    (let [c (slurp* "CLAUDE.md")]
+    ;; AGENTS.md はもう TypeScript ランタイムを名乗らない
+    (let [c (slurp* "AGENTS.md")]
       (if (nil? c)
-        (undet! "CLAUDE.md unreadable")
+        (undet! "AGENTS.md unreadable")
         (check! :claude-md-describes-cljs true
                 (and (not (str/includes? c "Single CF Worker (`src/app.ts`)"))
                      (str/includes? c "shadow-cljs")
