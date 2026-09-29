@@ -180,7 +180,7 @@ cljs の `:esm` bundle には要らない —— 憶測で消さず、これを�
 `mcp.etzhayyim.com` も `dig +short` が空を返すので、deploy しても route は
 張れないし中継先も無い。deploy するか retire するかは別の決定である。
 
-移行前の `CLAUDE.md` に書かれていた 3 行は、いま 1 行も実行できない:
+移行前の `AGENTS.md` に書かれていた 3 行は、いま 1 行も実行できない:
 `cd 60-apps/etzhayyim-project-open-power/worker`（そのパスは無い。この repo 自身が
 その directory）/ `wrangler d1 create etzhayyim-open-power`（作れても binding が
 無い）/ `e7m actor deploy .`（`e7m` は PATH に無い）。実行できる手順に置き換えた。

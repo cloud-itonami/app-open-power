@@ -83,7 +83,7 @@
      "この面は 8 つの XRPC（defineSubstation / defineFeeder / getNode / listFeeders / "
      "recordReading / reportOutage / listOutages / getLoadProfile）を **実装していない**。"
      "それらを実装していた worker/src/app.ts は deploy されず、D1 の binding も"
-     "宣言されていなかったので、移行では持ち越していない。設計は CLAUDE.md と "
+     "宣言されていなかったので、移行では持ち越していない。設計は AGENTS.md と "
      "dodaf/ に、停電分類の決定表は dmn/outage-class.dmn に残っている。"]
     (when built-at
       [:p {:class "op-note"} "bundle build: " built-at]))))

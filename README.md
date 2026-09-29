@@ -70,7 +70,7 @@ cljs 版は `catch` を持ち、意図どおり 502 を試みた URL 付きで�
 - `defence-handlers.ts` — どこからも import されておらず、依存の
   `@etzhayyim/kotodama-host-sdk` はこの repo のどの `package.json` にも宣言が無い。
 
-**設計は失われていない。** 8 XRPC の表は [`CLAUDE.md`](CLAUDE.md) と
+**設計は失われていない。** 8 XRPC の表は [`AGENTS.md`](AGENTS.md) と
 `dodaf/SV-1.json` に、停電分類の決定表は `dmn/outage-class.dmn` に在る（`app.ts` の
 `classifyOutage()` が DMN の 5 ルールと 1 つずつ一致することは確認済みで、乖離は
 無かった）。動かない経路を移植して「移行済み」と言わないためにこうしている。
@@ -99,7 +99,7 @@ bundle に入らず、移行が置き換えるものが 1 つも参照せず、�
 
 ## 4. 表面が 3 つとも違っていた（移行後もそのまま）
 
-| メソッド（`com.etzhayyim.apps.openPower.*`） | CLAUDE.md | 旧 `app.ts`（撤去） | `kotoba/` | **deploy される面** |
+| メソッド（`com.etzhayyim.apps.openPower.*`） | AGENTS.md | 旧 `app.ts`（撤去） | `kotoba/` | **deploy される面** |
 |---|---|---|---|---|
 | `defineSubstation` | ✅ | ✅ | ✅ | 中継のみ |
 | `defineFeeder` | ✅ | ✅ | ✅ | 中継のみ |
@@ -143,7 +143,7 @@ router の `tools/call` に詰めて投げる（移行前の `[...path]` と同�
 手を触れていない 12 ファイル（`README.edn` / `migration.edn` /
 `worker/kotodama.jsonld` / `bpmn/`×2 / `dmn/`×1 / `forms/`×2 / `dodaf/` のうち 4）は
 **1 バイトも変わっていない**。sha256 を `scripts/verify-docs-claims.cljk` に固定して
-ある。意図して変えた `worker/wrangler.jsonc` / `CLAUDE.md` / `dodaf/SV-1.json` /
+ある。意図して変えた `worker/wrangler.jsonc` / `AGENTS.md` / `dodaf/SV-1.json` /
 `dodaf/OV-6a.json` はその集合に入れず、内容で検査する ——
 意図した変更と勝手な変更を区別するためである。
 

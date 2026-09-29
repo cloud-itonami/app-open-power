@@ -44,7 +44,7 @@
             ↓ shadow-cljs :target :esm
     dist/worker.js              worker/wrangler.jsonc の main が指すもの
 
-superproject CLAUDE.md の runtime 順序は kotoba wasm > clojurewasm >
+superproject AGENTS.md の runtime 順序は kotoba wasm > clojurewasm >
 ClojureScript > nbb で、TypeScript はそこに無い。入口を `.kotoba` ではなく cljs に
 置くのは ADR-2606290000 の判断で、kotoba の ingress capability が `:native-aot` /
 `:wasm-aot` とも pending だからである。判断を `.cljc` に切り出してあるのは、
@@ -77,7 +77,7 @@ cloud-itonami-marketplace-listing。
 
 動かない経路を移植して『移行済み』と言わないためである。必要になった時点で
 `route.cljc` に足し、テストと binding を伴って戻す。設計そのものは失われていない
-—— 8 XRPC の表は `CLAUDE.md` と `dodaf/SV-1.json` に、停電分類の決定表は
+—— 8 XRPC の表は `AGENTS.md` と `dodaf/SV-1.json` に、停電分類の決定表は
 `dmn/outage-class.dmn` に在る（`app.ts` の `classifyOutage()` が DMN の 5 ルールと
 1 つずつ一致することは 2026-08-18 に確認済みで、乖離は無かった）。
 
@@ -108,7 +108,7 @@ cloud-itonami-marketplace-listing。
   から撤去した** —— `wrangler dev --local` を flag 無しの設定で起動し、全 route が
   期待どおり答えることを確認している（下記『検証』）。
 - `APP_FRAMEWORK` は `sveltekit-edge-bff` から `clojurescript-shadow-esm` にした。
-- `CLAUDE.md` は Runtime を『Single CF Worker (`src/app.ts`)』と書いていた。移行で
+- `AGENTS.md` は Runtime を『Single CF Worker (`src/app.ts`)』と書いていた。移行で
   偽になったので更新した。`Local Dev / Deploy` の 3 行は移行前から 1 行も実行できず
   （パスが無い / binding が無い / `e7m` が PATH に無い）、実際に走る手順に置き換えた。
 
@@ -217,7 +217,7 @@ NSID に `/` は現れないので上流で失敗するだけだが、**絞る�
   1 つ目だけだと kotoba/ の中に appview を書き戻せてしまい、2 つ目だけだと
   appview の TypeScript の復活を見逃す。
 - 手を触れていない 12 ファイルは 1 バイトも変わっていない（sha256 を検証器に固定）。
-  `worker/wrangler.jsonc` / `CLAUDE.md` / `dodaf/SV-1.json` / `dodaf/OV-6a.json` は
+  `worker/wrangler.jsonc` / `AGENTS.md` / `dodaf/SV-1.json` / `dodaf/OV-6a.json` は
   **意図して**変えたので、その集合ではなく内容で検査する。
 - **ホストは相変わらず解決しない。** `open-power.etzhayyim.com` も
   `mcp.etzhayyim.com` も `dig +short` が空を返す。移行はそれを直さない。
